@@ -1,0 +1,151 @@
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import MainLayout from '../layouts/MainLayout';
+import { Tabs } from '../components/ui';
+import BookingRow from '../components/BookingRow';
+import { BOOKING_STATUS, ROUTES } from '../constants';
+import { adminBookings, adminProducts, adminConfirmRefund, adminReviewProduct, adminSetStatus, adminStats, errorMessage } from '../services/api';
+import { formatCurrency } from '../utils/format';
+
+const TABS = [['products', 'Duyệt đồ'], ['bookings', 'Đơn & tranh chấp'], ['money', 'Dòng tiền']];
+
+export default function AdminPage() {
+  const [params] = useSearchParams();
+  const tab = params.get('tab') || 'products';
+  return (
+    <MainLayout>
+      <div className="mx-auto max-w-5xl px-4 py-8">
+        <h1 className="font-serif text-3xl">Quản trị</h1>
+        <Tabs items={TABS} active={tab} />
+        <div className="mt-6">
+          {tab === 'products' && <Moderation />}
+          {tab === 'bookings' && <Bookings />}
+          {tab === 'money' && <Money />}
+        </div>
+      </div>
+    </MainLayout>
+  );
+}
+
+// ── Kiểm duyệt đồ đăng lên (tránh hàng giả / kém chất lượng) ────────────
+function Moderation() {
+  const [list, setList] = useState(null);
+  const load = useCallback(() => adminProducts('PENDING').then(setList).catch(() => setList([])), []);
+  useEffect(() => { load(); }, [load]);
+
+  const decide = (id, approve) => {
+    const reason = approve ? null : prompt('Lý do từ chối (chủ đồ sẽ thấy):');
+    if (!approve && !reason) return;
+    adminReviewProduct(id, { approve, reason }).then(() => { toast.success(approve ? 'Đã duyệt' : 'Đã từ chối'); load(); })
+      .catch((e) => toast.error(errorMessage(e)));
+  };
+
+  if (list === null) return <p className="text-stone-500">Đang tải…</p>;
+  if (!list.length) return <p className="card p-8 text-center text-stone-500">Không có món nào chờ duyệt.</p>;
+  return (
+    <ul className="space-y-4">
+      {list.map((p) => (
+        <li key={p.id} className="card p-4">
+          <div className="no-scrollbar flex gap-2 overflow-x-auto">
+            {p.images.map((src) => <a key={src} href={src} target="_blank" rel="noreferrer"><img src={src} alt="" loading="lazy" className="h-40 w-28 shrink-0 rounded-lg object-cover" /></a>)}
+          </div>
+          <div className="mt-3 text-sm">
+            <Link to={ROUTES.PRODUCT(p.id)} className="font-semibold">{p.name}</Link>
+            <p className="text-stone-500">{p.category} · Size {p.size} · {p.bustMax}-{p.waistMax}-{p.hipMax} · {p.itemCondition} · Chủ: {p.owner.name} (uy tín {p.owner.trustScore})</p>
+            <p className="mt-1">Niêm yết {formatCurrency(p.retailPrice)} · Thuê {formatCurrency(p.rentPricePerDay)}/ngày · Cọc {p.depositPercent}% = {formatCurrency(p.deposit)}</p>
+            <p className="mt-1 text-stone-600">{p.description}</p>
+            <p className="mt-1 text-xs text-stone-500">{[...p.colors, ...p.styles, ...p.occasions, ...p.features].join(' · ')}</p>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button onClick={() => decide(p.id, true)} className="btn-dark px-4 py-2">Duyệt</button>
+            <button onClick={() => decide(p.id, false)} className="btn-ghost px-4 py-2">Từ chối</button>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// ── Đơn thuê, kiểm định trả đồ, tranh chấp ──────────────────────────────
+const ACTIONS = {
+  PENDING: [['CONFIRMED', 'Xác nhận'], ['CANCELLED', 'Huỷ']],
+  CONFIRMED: [['SHIPPING', 'Đang giao'], ['RENTED', 'Khách đã nhận'], ['CANCELLED', 'Huỷ']],
+  SHIPPING: [['RENTED', 'Khách đã nhận'], ['CANCELLED', 'Huỷ']],
+  RENTED: [['RETURNED', 'Đã nhận lại đồ']],
+  RETURNED: [['COMPLETED', 'Kiểm định OK → Hoàn cọc'], ['DISPUTED', 'Hư hỏng → Tranh chấp']],
+  DISPUTED: [['COMPLETED', 'Chốt & hoàn phần cọc còn lại']],
+};
+
+function Bookings() {
+  const [status, setStatus] = useState('');
+  const [list, setList] = useState(null);
+  const load = useCallback(() => adminBookings(status || undefined).then(setList).catch(() => setList([])), [status]);
+  useEffect(() => { load(); }, [load]);
+
+  const act = (b, to) => {
+    const body = { status: to };
+    if (to === 'DISPUTED') {
+      const amount = prompt(`Số tiền trừ cọc (tối đa ${b.depositAmount}):`, '0');
+      if (amount === null) return;
+      body.deductionAmount = Math.max(0, Number(amount) || 0);
+      body.note = prompt('Mô tả hư hỏng / tranh chấp:') || '';
+    }
+    if (to === 'CANCELLED' && !confirm(b.paymentStatus === 'PAID' && b.paymentMethod === 'PAYOS'
+      ? `Huỷ đơn? Khách đã trả ${formatCurrency(b.totalAmount)} qua QR — đơn sẽ chờ bạn chuyển khoản hoàn lại thủ công.` : 'Huỷ đơn này?')) return;
+    if (to === 'COMPLETED' && !confirm(`Hoàn ${formatCurrency(b.depositAmount - b.deductionAmount)} tiền cọc về ${b.refundBankAccount ? `${b.refundBankName || ''} ${b.refundBankAccount}` : 'STK trong hồ sơ khách'}. Bạn sẽ tự chuyển khoản rồi bấm "Đã chuyển khoản". Tiếp tục?`)) return;
+    adminSetStatus(b.id, body).then(() => { toast.success('Đã cập nhật'); load(); }).catch((e) => toast.error(errorMessage(e)));
+  };
+
+  // Hoàn tiền làm tay: admin chuyển khoản trong app ngân hàng rồi xác nhận ở đây
+  const confirmRefund = (b) => {
+    const ref = prompt(`Đã chuyển ${formatCurrency(b.refundAmount)} về ${b.refundBankName || ''} ${b.refundBankAccount}?\nMã giao dịch ngân hàng (tuỳ chọn):`, '');
+    if (ref === null) return;
+    adminConfirmRefund(b.id, ref).then(() => { toast.success('Đã ghi nhận hoàn tiền'); load(); }).catch((e) => toast.error(errorMessage(e)));
+  };
+
+  return (
+    <>
+      <div className="no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4">
+        {[['', 'Tất cả'], ...Object.entries(BOOKING_STATUS).map(([k, v]) => [k, v.label])].map(([k, l]) => (
+          <button key={k} onClick={() => setStatus(k)} className={`shrink-0 ${status === k ? 'chip-on' : 'chip-off'}`}>{l}</button>
+        ))}
+      </div>
+      {list === null ? <p className="text-stone-500">Đang tải…</p> : !list.length ? <p className="text-sm text-stone-500">Không có đơn.</p> : (
+        <ul className="space-y-4">
+          {list.map((b) => (
+            <BookingRow key={b.id} b={b} showRenter="admin">
+              {(ACTIONS[b.status] || []).map(([to, label]) => (
+                <button key={to} onClick={() => act(b, to)} className={['CANCELLED', 'DISPUTED'].includes(to) ? 'btn-ghost px-3 py-1.5 text-xs' : 'btn-dark px-3 py-1.5 text-xs'}>{label}</button>
+              ))}
+              {b.refundStatus === 'PROCESSING' && <button onClick={() => confirmRefund(b)} className="btn-wine px-3 py-1.5 text-xs">Đã chuyển khoản</button>}
+            </BookingRow>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+// ── Dòng tiền ──────────────────────────────────────────────────────────
+function Money() {
+  const [s, setS] = useState(null);
+  useEffect(() => { adminStats().then(setS).catch(() => {}); }, []);
+  if (!s) return <p className="text-stone-500">Đang tải…</p>;
+  const cards = [
+    ['Cọc đang giữ (Hold)', formatCurrency(s.depositsHeld)],
+    ['Cọc đã hoàn', formatCurrency(s.depositsRefunded)],
+    ['Cọc bị trừ (hư hỏng)', formatCurrency(s.depositsForfeited)],
+    ['Doanh thu thuê đã thu', formatCurrency(s.rentRevenue)],
+    ['Chưa thu (COD / chờ QR)', formatCurrency(s.unpaid)],
+    ['Đồ chờ duyệt', s.pendingProducts],
+    ['Chờ chuyển khoản hoàn tiền', s.refundsPending],
+    ['Tranh chấp đang mở', s.disputes],
+    ['Tổng số đơn', s.totalBookings],
+  ];
+  return (
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      {cards.map(([k, v]) => <div key={k} className="card p-4"><p className="text-xs text-stone-500">{k}</p><p className="mt-1 text-lg font-semibold">{v}</p></div>)}
+    </div>
+  );
+}

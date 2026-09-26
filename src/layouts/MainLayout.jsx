@@ -1,62 +1,77 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Menu, X, LogOut, User, ChevronDown, Bookmark } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Link, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
+import { ClipboardList, LogOut, Menu, Search, ShoppingBag, Shield, User, X } from 'lucide-react';
 import { ROUTES } from '../constants';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 
+const NAV = [
+  { to: ROUTES.HOME, label: 'Trang chủ', end: true },
+  { to: ROUTES.PRODUCTS, label: 'Danh mục' },
+  { to: ROUTES.ABOUT, label: 'Về chúng tôi' },
+];
+
+// Mạng xã hội ở chân trang — icon lấy từ bộ icon footer của igogo-web (lucide bản mới đã bỏ icon thương hiệu)
+// TODO: thay link trang chủ mạng xã hội bằng trang của Lentique khi có
+const SOCIALS = [
+  { label: 'Facebook', href: 'https://www.facebook.com/', paths: ["M24 12C24 5.37258 18.6274 0 12 0C5.37258 0 0 5.37258 0 12C0 17.9895 4.3882 22.954 10.125 23.8542V15.4688H7.07812V12H10.125V9.35625C10.125 6.34875 11.9166 4.6875 14.6576 4.6875C15.9701 4.6875 17.3438 4.92188 17.3438 4.92188V7.875H15.8306C14.34 7.875 13.875 8.80008 13.875 9.75V12H17.2031L16.6711 15.4688H13.875V23.8542C19.6118 22.954 24 17.9895 24 12Z"] },
+  { label: 'Instagram', href: 'https://www.instagram.com/', paths: ["M12 2.16094C15.2063 2.16094 15.5859 2.175 16.8469 2.23125C18.0188 2.28281 18.6516 2.47969 19.0734 2.64375C19.6313 2.85938 20.0344 3.12188 20.4516 3.53906C20.8734 3.96094 21.1313 4.35938 21.3469 4.91719C21.5109 5.33906 21.7078 5.97656 21.7594 7.14375C21.8156 8.40937 21.8297 8.78906 21.8297 11.9906C21.8297 15.1969 21.8156 15.5766 21.7594 16.8375C21.7078 18.0094 21.5109 18.6422 21.3469 19.0641C21.1313 19.6219 20.8688 20.025 20.4516 20.4422C20.0297 20.8641 19.6313 21.1219 19.0734 21.3375C18.6516 21.5016 18.0141 21.6984 16.8469 21.75C15.5813 21.8063 15.2016 21.8203 12 21.8203C8.79375 21.8203 8.41406 21.8063 7.15313 21.75C5.98125 21.6984 5.34844 21.5016 4.92656 21.3375C4.36875 21.1219 3.96563 20.8594 3.54844 20.4422C3.12656 20.0203 2.86875 19.6219 2.65313 19.0641C2.48906 18.6422 2.29219 18.0047 2.24063 16.8375C2.18438 15.5719 2.17031 15.1922 2.17031 11.9906C2.17031 8.78438 2.18438 8.40469 2.24063 7.14375C2.29219 5.97187 2.48906 5.33906 2.65313 4.91719C2.86875 4.35938 3.13125 3.95625 3.54844 3.53906C3.97031 3.11719 4.36875 2.85938 4.92656 2.64375C5.34844 2.47969 5.98594 2.28281 7.15313 2.23125C8.41406 2.175 8.79375 2.16094 12 2.16094ZM12 0C8.74219 0 8.33438 0.0140625 7.05469 0.0703125C5.77969 0.126563 4.90313 0.332812 4.14375 0.628125C3.35156 0.9375 2.68125 1.34531 2.01563 2.01562C1.34531 2.68125 0.9375 3.35156 0.628125 4.13906C0.332812 4.90313 0.126563 5.775 0.0703125 7.05C0.0140625 8.33437 0 8.74219 0 12C0 15.2578 0.0140625 15.6656 0.0703125 16.9453C0.126563 18.2203 0.332812 19.0969 0.628125 19.8563C0.9375 20.6484 1.34531 21.3188 2.01563 21.9844C2.68125 22.65 3.35156 23.0625 4.13906 23.3672C4.90313 23.6625 5.775 23.8687 7.05 23.925C8.32969 23.9812 8.7375 23.9953 11.9953 23.9953C15.2531 23.9953 15.6609 23.9812 16.9406 23.925C18.2156 23.8687 19.0922 23.6625 19.8516 23.3672C20.6391 23.0625 21.3094 22.65 21.975 21.9844C22.6406 21.3188 23.0531 20.6484 23.3578 19.8609C23.6531 19.0969 23.8594 18.225 23.9156 16.95C23.9719 15.6703 23.9859 15.2625 23.9859 12.0047C23.9859 8.74688 23.9719 8.33906 23.9156 7.05938C23.8594 5.78438 23.6531 4.90781 23.3578 4.14844C23.0625 3.35156 22.6547 2.68125 21.9844 2.01562C21.3188 1.35 20.6484 0.9375 19.8609 0.632812C19.0969 0.3375 18.225 0.13125 16.95 0.075C15.6656 0.0140625 15.2578 0 12 0Z", "M12 5.83594C8.59688 5.83594 5.83594 8.59688 5.83594 12C5.83594 15.4031 8.59688 18.1641 12 18.1641C15.4031 18.1641 18.1641 15.4031 18.1641 12C18.1641 8.59688 15.4031 5.83594 12 5.83594ZM12 15.9984C9.79219 15.9984 8.00156 14.2078 8.00156 12C8.00156 9.79219 9.79219 8.00156 12 8.00156C14.2078 8.00156 15.9984 9.79219 15.9984 12C15.9984 14.2078 14.2078 15.9984 12 15.9984Z", "M19.8469 5.59214C19.8469 6.38902 19.2 7.0312 18.4078 7.0312C17.6109 7.0312 16.9688 6.38433 16.9688 5.59214C16.9688 4.79526 17.6156 4.15308 18.4078 4.15308C19.2 4.15308 19.8469 4.79995 19.8469 5.59214Z"] },
+  { label: 'TikTok', href: 'https://www.tiktok.com/', paths: ["M17.0725 0H13.0278V16.3478C13.0278 18.2957 11.4722 19.8957 9.53626 19.8957C7.60034 19.8957 6.04469 18.2957 6.04469 16.3478C6.04469 14.4348 7.56577 12.8695 9.43257 12.8V8.69567C5.31872 8.7652 2 12.1391 2 16.3478C2 20.5913 5.38786 24 9.57085 24C13.7538 24 17.1416 20.5565 17.1416 16.3478V7.9652C18.6627 9.07827 20.5295 9.73913 22.5 9.77393V5.66957C19.4579 5.56522 17.0725 3.06087 17.0725 0Z"] },
+  { label: 'YouTube', href: 'https://www.youtube.com/', paths: ["M23.7609 7.20005C23.7609 7.20005 23.5266 5.54536 22.8047 4.8188C21.8906 3.86255 20.8688 3.85786 20.4 3.80161C17.0438 3.55786 12.0047 3.55786 12.0047 3.55786H11.9953C11.9953 3.55786 6.95625 3.55786 3.6 3.80161C3.13125 3.85786 2.10938 3.86255 1.19531 4.8188C0.473438 5.54536 0.24375 7.20005 0.24375 7.20005C0.24375 7.20005 0 9.14536 0 11.086V12.9047C0 14.8454 0.239062 16.7907 0.239062 16.7907C0.239062 16.7907 0.473437 18.4454 1.19062 19.1719C2.10469 20.1282 3.30469 20.0954 3.83906 20.1985C5.76094 20.3813 12 20.4375 12 20.4375C12 20.4375 17.0438 20.4282 20.4 20.1891C20.8688 20.1329 21.8906 20.1282 22.8047 19.1719C23.5266 18.4454 23.7609 16.7907 23.7609 16.7907C23.7609 16.7907 24 14.85 24 12.9047V11.086C24 9.14536 23.7609 7.20005 23.7609 7.20005ZM9.52031 15.1125V8.36724L16.0031 11.7516L9.52031 15.1125Z"] },
+];
+
+/** Logo: móc treo đồ hình chữ L + chữ Lentique. light = nền tối (footer) → icon trắng. */
+export function Logo({ light, className = 'text-2xl' }) {
+  return (
+    <Link to={ROUTES.HOME} aria-label="Lentique — Trang chủ"
+      className={`flex items-center gap-2 font-serif font-semibold tracking-tight ${light ? 'text-white' : 'text-ink'} ${className}`}>
+      <img src="/logo-mark.png" alt="" className={`h-[1.3em] w-auto ${light ? 'brightness-0 invert' : ''}`} />
+      Lentique
+    </Link>
+  );
+}
+
+function SearchBar({ className = '' }) {
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const [q, setQ] = useState(params.get('q') || '');
+  return (
+    <form role="search" className={`relative ${className}`}
+      onSubmit={(e) => { e.preventDefault(); navigate(`${ROUTES.PRODUCTS}${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`); }}>
+      <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm áo dài, đầm dạ hội, veston..."
+        aria-label="Tìm kiếm" className="w-full rounded-full border border-stone-200 bg-stone-100 py-2 pl-10 pr-4 text-sm outline-none focus:border-ink focus:bg-white" />
+    </form>
+  );
+}
+
 function UserMenu({ user, onLogout }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-
   useEffect(() => {
-    const handleClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    const close = (e) => ref.current && !ref.current.contains(e.target) && setOpen(false);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
   }, []);
-
   return (
     <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 hover:bg-pink-50 rounded-full px-3 py-1.5 transition-colors"
-      >
-        {user?.avatar ? (
-          <img src={user.avatar} alt="" className="w-7 h-7 rounded-full object-cover" />
-        ) : (
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-white text-xs font-bold">
-            {(user?.name || user?.email || 'U')[0].toUpperCase()}
-          </div>
-        )}
-        <span className="text-sm font-medium text-gray-700 hidden lg:block max-w-[120px] truncate">
-          {user?.name || user?.email}
-        </span>
-        <ChevronDown size={14} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      <button onClick={() => setOpen((o) => !o)} aria-label="Tài khoản" className="flex items-center rounded-full p-0.5 hover:ring-2 hover:ring-stone-200">
+        {user.avatarUrl
+          ? <img src={user.avatarUrl} alt="" referrerPolicy="no-referrer" className="h-8 w-8 rounded-full object-cover" />
+          : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-xs font-bold text-white">{(user.name || 'U')[0]}</span>}
       </button>
-
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-xl border border-pink-100 overflow-hidden z-50">
-          <div className="px-4 py-3 border-b border-pink-50">
-            <p className="text-xs font-medium text-gray-700 truncate">{user?.name}</p>
-            <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+        <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-xl">
+          <div className="border-b border-stone-100 px-4 py-3">
+            <p className="truncate text-sm font-semibold">{user.name}</p>
+            <p className="truncate text-xs text-stone-500">{user.email}</p>
           </div>
-          <Link
-            to="/my-collection"
-            onClick={() => setOpen(false)}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-600 hover:bg-pink-50 hover:text-pink-500 transition-colors"
-          >
-            <Bookmark size={14} />
-            Bộ sưu tập của tôi
-          </Link>
-          <button
-            onClick={() => { setOpen(false); onLogout(); }}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-600 hover:bg-rose-50 hover:text-rose-500 transition-colors"
-          >
-            <LogOut size={14} />
-            Đăng xuất
-          </button>
+          <Link to={ROUTES.PROFILE} onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-stone-50"><User size={15} />Hồ sơ của tôi</Link>
+          <Link to={ROUTES.ACCOUNT} onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-stone-50"><ClipboardList size={15} />Đơn thuê & cho thuê</Link>
+          {user.role === 'ADMIN' && (
+            <Link to={ROUTES.ADMIN} onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-stone-50"><Shield size={15} />Quản trị</Link>
+          )}
+          <button onClick={() => { setOpen(false); onLogout(); }} className="flex w-full items-center gap-3 px-4 py-3 text-sm text-rose-600 hover:bg-rose-50"><LogOut size={15} />Đăng xuất</button>
         </div>
       )}
     </div>
@@ -67,195 +82,90 @@ export default function MainLayout({ children }) {
   const { isLoggedIn, user, logout } = useAuth();
   const { itemCount } = useCart();
   const [menuOpen, setMenuOpen] = useState(false);
-  const location = useLocation();
   const navigate = useNavigate();
 
-  const navLinks = [];
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50">
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-pink-100 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          {/* Logo */}
-          <Link to={ROUTES.HOME} className="flex items-center gap-2">
-            <span className="text-2xl">🎁</span>
-            <span className="font-bold text-xl bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent">
-              Love Box
-            </span>
-          </Link>
-
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-6">
-            {navLinks.map((l) => (
-              <Link
-                key={l.to}
-                to={l.to}
-                className={`text-sm font-medium transition-colors ${
-                  location.pathname === l.to ? 'text-pink-500' : 'text-gray-600 hover:text-pink-500'
-                }`}
-              >
+    <div className="flex min-h-screen flex-col">
+      <header className="sticky top-0 z-40 border-b border-stone-200 bg-cream/95 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
+          <button onClick={() => setMenuOpen((o) => !o)} className="-ml-2 rounded-full p-2 md:hidden" aria-label="Menu">
+            {menuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+          <Logo />
+          <nav className="ml-4 hidden items-center gap-6 md:flex">
+            {NAV.map((l) => (
+              <NavLink key={l.to} to={l.to} end={l.end}
+                className={({ isActive }) => `text-sm font-medium transition ${isActive ? 'text-wine-600' : 'text-stone-600 hover:text-ink'}`}>
                 {l.label}
-              </Link>
+              </NavLink>
             ))}
           </nav>
-
-          {/* Right side */}
-          <div className="flex items-center gap-3">
-
-            {/* Cart */}
-            {isLoggedIn && (
-              <Link to={ROUTES.CART} className="relative p-2 text-pink-400 hover:text-pink-500 transition-colors">
-                <ShoppingBag size={20} />
-                {itemCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-pink-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
-                    {itemCount > 9 ? '9+' : itemCount}
-                  </span>
-                )}
-              </Link>
-            )}
-
-            {/* Auth */}
-            {isLoggedIn ? (
-              <UserMenu user={user} onLogout={logout} />
-            ) : (
-              <button
-                onClick={() => navigate(ROUTES.LOGIN)}
-                className="hidden md:flex items-center gap-1.5 text-pink-500 hover:text-pink-600 border border-pink-200 hover:border-pink-300 px-4 py-2 rounded-full text-sm font-medium transition-colors"
-              >
-                <User size={14} />
-                Đăng nhập
-              </button>
-            )}
-
-            {/* Mobile hamburger */}
-            <button
-              onClick={() => setMenuOpen((o) => !o)}
-              className="md:hidden p-2 text-pink-400 hover:text-pink-500 transition-colors"
-            >
-              {menuOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
+          <SearchBar className="ml-auto hidden w-64 lg:block" />
+          <div className="ml-auto flex items-center gap-1 lg:ml-2">
+            <Link to={ROUTES.CART} aria-label="Giỏ hàng" className="relative rounded-full p-2 hover:bg-stone-100">
+              <ShoppingBag size={20} />
+              {itemCount > 0 && (
+                <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-wine-600 px-1 text-[10px] font-bold text-white">{itemCount}</span>
+              )}
+            </Link>
+            {isLoggedIn
+              ? <UserMenu user={user} onLogout={logout} />
+              : <button onClick={() => navigate(ROUTES.LOGIN)} className="btn-dark px-4 py-2"><span className="sm:hidden">Đăng nhập</span><span className="hidden sm:inline">Đăng nhập / Đăng ký</span></button>}
           </div>
         </div>
-
-        {/* Mobile menu */}
+        <div className="px-4 pb-3 lg:hidden"><SearchBar /></div>
         {menuOpen && (
-          <div className="md:hidden bg-white border-t border-pink-100 px-4 py-4 space-y-3">
-            {navLinks.map((l) => (
-              <Link
-                key={l.to}
-                to={l.to}
-                onClick={() => setMenuOpen(false)}
-                className="block text-sm font-medium text-gray-600 hover:text-pink-500 py-2"
-              >
+          <nav className="border-t border-stone-200 bg-cream px-4 py-2 md:hidden">
+            {NAV.map((l) => (
+              <NavLink key={l.to} to={l.to} end={l.end} onClick={() => setMenuOpen(false)}
+                className={({ isActive }) => `block py-3 text-base font-medium ${isActive ? 'text-wine-600' : ''}`}>
                 {l.label}
-              </Link>
+              </NavLink>
             ))}
-            <div className="pt-2 border-t border-pink-50 space-y-2">
-              {isLoggedIn ? (
-                <button
-                  onClick={() => { logout(); setMenuOpen(false); }}
-                  className="flex items-center gap-2 text-sm text-gray-500 hover:text-rose-500 py-2"
-                >
-                  <LogOut size={14} />
-                  Đăng xuất
-                </button>
-              ) : (
-                <button
-                  onClick={() => { navigate(ROUTES.LOGIN); setMenuOpen(false); }}
-                  className="flex items-center gap-2 text-sm text-pink-500 py-2"
-                >
-                  <User size={14} />
-                  Đăng nhập
-                </button>
-              )}
-            </div>
-          </div>
+          </nav>
         )}
       </header>
 
-      <main>{children}</main>
+      <main id="main-content" className="flex-1">{children}</main>
 
-      {/* Footer — Florlen 4-column style */}
-      <footer className="bg-white border-t border-pink-100 mt-20">
-        <div className="max-w-6xl mx-auto px-4 pt-14 pb-10">
-          <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 md:grid-cols-4 md:gap-8">
-
-            {/* Col 1: Logo + tagline */}
-            <div className="flex flex-col gap-3">
-              <Link to={ROUTES.HOME} className="flex items-center gap-2">
-                <span className="text-2xl">🎁</span>
-                <span className="font-bold text-xl bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent">Love Box</span>
-              </Link>
-              <p className="text-sm text-gray-500 leading-relaxed max-w-[200px]">
-                Tạo hộp quà cá nhân hoá bằng AI — tặng đi yêu thương ✨
-              </p>
-            </div>
-
-            {/* Col 2: Khám phá */}
-            <div>
-              <h4 className="font-semibold text-gray-800 mb-5 text-sm">Khám phá</h4>
-              <ul className="space-y-3">
-                {[
-                  { label: 'Trang chủ', to: ROUTES.HOME },
-                  { label: 'Sản phẩm', to: ROUTES.PRODUCTS },
-                ].map((l) => (
-                  <li key={l.label}>
-                    <Link to={l.to} className="text-sm text-gray-500 hover:text-pink-500 transition-colors">
-                      {l.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Col 3: Mạng xã hội */}
-            <div>
-              <h4 className="font-semibold text-gray-800 mb-5 text-sm">Mạng xã hội</h4>
-              <ul className="space-y-4">
-                {[
-                  { label: 'Facebook', href: 'https://facebook.com', svgPath: 'M24 12.073C24 5.404 18.627 0 12 0S0 5.404 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.532-4.697 1.313 0 2.686.235 2.686.235v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.27h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z' },
-                  { label: 'Instagram', href: 'https://instagram.com', svgPath: 'M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z' },
-                  { label: 'TikTok', href: 'https://tiktok.com', svgPath: 'M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z' },
-                  { label: 'YouTube', href: 'https://youtube.com', svgPath: 'M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z' },
-                ].map(({ label, href, svgPath }) => (
-                  <li key={label}>
-                    <a href={href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-sm text-gray-500 hover:text-pink-500 transition-colors">
-                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-gray-400 shrink-0">
-                        <path d={svgPath} />
-                      </svg>
-                      {label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Col 4: Hỗ trợ */}
-            <div>
-              <h4 className="font-semibold text-gray-800 mb-5 text-sm">Hỗ trợ</h4>
-              <ul className="space-y-3">
-                {[
-                  { label: 'Thông tin giao hàng', to: '/shipping' },
-                  { label: 'Chính sách bảo mật', to: '/privacy' },
-                  { label: 'Điều khoản dịch vụ', to: '/terms' },
-                ].map((l) => (
-                  <li key={l.label}>
-                    <Link to={l.to} className="text-sm text-gray-500 hover:text-pink-500 transition-colors">{l.label}</Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
+      <footer className="mt-20 bg-ink text-stone-400">
+        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:grid-cols-2 md:grid-cols-4">
+          <div>
+            <Logo light />
+            <p className="mt-3 max-w-xs text-sm leading-relaxed">Thuê đồ đẹp cho mọi dịp — trợ lý AI chọn giúp bộ vừa dáng, hợp túi tiền.</p>
           </div>
-
-          {/* Bottom bar */}
-          <div className="mt-12 border-t border-pink-100 pt-6 flex flex-col-reverse md:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-gray-400">© {new Date().getFullYear()} Love Box. All rights reserved.</p>
-            <div className="flex gap-2">
-              {['🌸', '💝', '🎀', '✨', '💌'].map((e, i) => <span key={i} className="text-lg">{e}</span>)}
-            </div>
+          <FooterCol title="Khám phá" links={[[ROUTES.PRODUCTS, 'Danh mục'], [ROUTES.ABOUT, 'Về chúng tôi']]} />
+          <FooterCol title="Cho thuê" links={[[ROUTES.NEW_PRODUCT, 'Đăng đồ cho thuê'], [ROUTES.ACCOUNT, 'Quản lý đơn thuê']]} />
+          <FooterCol title="Hỗ trợ" links={[['/shipping', 'Giao nhận & trả đồ'], ['/privacy', 'Chính sách bảo mật'], ['/terms', 'Điều khoản thuê & cọc']]} />
+        </div>
+        <div className="border-t border-stone-800">
+          <div className="mx-auto flex max-w-6xl flex-col-reverse items-center justify-between gap-4 px-4 py-5 sm:flex-row">
+            <p className="text-xs">© {new Date().getFullYear()} Lentique. Made in Vietnam.</p>
+            <ul className="flex gap-5">
+              {SOCIALS.map(({ label, href, paths }) => (
+                <li key={label}>
+                  <a href={href} target="_blank" rel="noopener noreferrer" aria-label={label} className="flex transition-colors hover:text-white">
+                    <svg width={20} height={20} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      {paths.map((d) => <path key={d.slice(0, 16)} d={d} />)}
+                    </svg>
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function FooterCol({ title, links }) {
+  return (
+    <div>
+      <h4 className="mb-4 text-sm font-semibold text-white">{title}</h4>
+      <ul className="space-y-2.5 text-sm">
+        {links.map(([to, label]) => <li key={label}><Link to={to} className="hover:text-white">{label}</Link></li>)}
+      </ul>
     </div>
   );
 }

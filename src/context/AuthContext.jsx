@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { loginWithGoogle as apiLoginWithGoogle, getCurrentUser } from '../services/authApi';
 import toast from 'react-hot-toast';
 
-const AUTH_USER_KEY = 'lb_user';
+const AUTH_USER_KEY = 'lt_user';
 const AuthContext = createContext(null);
 
 const readUser = () => {
@@ -28,7 +28,7 @@ export function AuthProvider({ children }) {
 
     getCurrentUser()
       .then((res) => {
-        const u = res.data?.data ?? res.data;
+        const u = res.data;
         setUser(u);
         saveUser(u);
       })
@@ -48,17 +48,24 @@ export function AuthProvider({ children }) {
   const loginWithGoogle = async (credential) => {
     try {
       const res = await apiLoginWithGoogle(credential);
-      const { accessToken, refreshToken, user: userData } = res.data.data;
+      const { accessToken, refreshToken, user: userData } = res.data;
       localStorage.setItem('access_token', accessToken);
       localStorage.setItem('refresh_token', refreshToken);
       saveUser(userData);
       setUser(userData);
-      toast.success(`Chào mừng ${userData?.name || 'bạn'}! 💖`);
+      toast.success(`Chào mừng ${userData?.name || 'bạn'}!`);
       return userData;
     } catch {
       toast.error('Đăng nhập thất bại. Vui lòng thử lại.');
       throw new Error('Login failed');
     }
+  };
+
+  const refreshUser = async () => {
+    const res = await getCurrentUser();
+    setUser(res.data);
+    saveUser(res.data);
+    return res.data;
   };
 
   const logout = () => {
@@ -68,7 +75,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, isLoggedIn: !!user, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, loading, isLoggedIn: !!user, loginWithGoogle, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

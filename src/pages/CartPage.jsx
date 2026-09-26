@@ -1,159 +1,93 @@
-import { useChat } from '../context/ChatContext';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { CalendarDays, Trash2 } from 'lucide-react';
 import MainLayout from '../layouts/MainLayout';
+import { Row } from '../components/ui';
+import RangeCalendar from '../components/RangeCalendar';
 import { useCart } from '../context/CartContext';
-import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, Loader } from 'lucide-react';
-
-function CartItemCard({ item, onUpdate, onRemove }) {
-  return (
-    <div className="bg-white rounded-2xl border border-pink-100 p-5 flex gap-4 shadow-sm">
-      {/* Preview image */}
-      {item.giftDesign?.imageUrl ? (
-        <img
-          src={item.giftDesign.imageUrl}
-          alt=""
-          className="w-20 h-20 rounded-xl object-cover flex-shrink-0 border border-pink-50"
-        />
-      ) : (
-        <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-pink-100 to-rose-100 flex items-center justify-center flex-shrink-0">
-          <span className="text-3xl">🎁</span>
-        </div>
-      )}
-
-      <div className="flex-1 min-w-0">
-        <h3 className="font-semibold text-gray-700 text-sm mb-1">
-          {item.giftDesign?.name || 'Hộp quà AI'}
-        </h3>
-        {item.boxSize && (
-          <p className="text-xs text-gray-400 mb-0.5">📦 {item.boxSize.name}</p>
-        )}
-        {item.greetingWish && (
-          <p className="text-xs text-pink-400 mb-2 line-clamp-1">
-            💌 {item.greetingWish.recipientName}: "{item.greetingWish.message}"
-          </p>
-        )}
-        <div className="flex items-center justify-between mt-2">
-          {/* Qty controls */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onUpdate(item.id, Math.max(1, (item.quantity || 1) - 1))}
-              className="w-7 h-7 rounded-full border border-pink-200 flex items-center justify-center text-pink-400 hover:bg-pink-50 transition-colors"
-            >
-              <Minus size={12} />
-            </button>
-            <span className="text-sm font-medium text-gray-700 w-5 text-center">
-              {item.quantity || 1}
-            </span>
-            <button
-              onClick={() => onUpdate(item.id, (item.quantity || 1) + 1)}
-              className="w-7 h-7 rounded-full border border-pink-200 flex items-center justify-center text-pink-400 hover:bg-pink-50 transition-colors"
-            >
-              <Plus size={12} />
-            </button>
-          </div>
-          {/* Price */}
-          {item.totalPrice != null && (
-            <span className="text-sm font-bold text-pink-500">
-              {Number(item.totalPrice).toLocaleString('vi-VN')}đ
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Remove */}
-      <button
-        onClick={() => onRemove(item.id)}
-        className="self-start w-8 h-8 flex items-center justify-center text-gray-300 hover:text-rose-400 hover:bg-rose-50 rounded-xl transition-colors flex-shrink-0"
-      >
-        <Trash2 size={15} />
-      </button>
-    </div>
-  );
-}
+import { ROUTES } from '../constants';
+import { useChat } from '../components/Chat';
+import { getBlockedDates } from '../services/api';
+import { cartTotals, formatCurrency, formatDate, rentalDays, todayISO } from '../utils/format';
 
 export default function CartPage() {
-  const { openStudio } = useChat();
+  const { setOpen } = useChat();
+  const { items, updateItem, removeItem } = useCart();
   const navigate = useNavigate();
-  const { cart, loading, updateItem, removeItem } = useCart();
+  const [editing, setEditing] = useState(null);   // productId đang mở lịch
+  const [blocked, setBlocked] = useState({});
 
-  const items = cart?.items || [];
-  const total = cart?.totalPrice ?? items.reduce((sum, i) => sum + (i.totalPrice || 0), 0);
+  const openCalendar = (id) => {
+    setEditing(editing === id ? null : id);
+    if (!blocked[id]) getBlockedDates(id).then((d) => setBlocked((b) => ({ ...b, [id]: d }))).catch(() => {});
+  };
 
-  if (loading) {
-    return (
-      <MainLayout>
-        <div className="min-h-screen flex items-center justify-center">
-          <Loader size={24} className="text-pink-400 animate-spin" />
-        </div>
-      </MainLayout>
-    );
-  }
+  const stale = (i) => i.startDate && i.startDate < todayISO();
+  const ready = items.length > 0 && items.every((i) => i.endDate && !stale(i));
+  const { rent, deposit } = cartTotals(items.filter((i) => i.endDate));
 
   return (
     <MainLayout>
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50">
-        <div className="max-w-2xl mx-auto px-4 py-10">
-          <h1 className="text-2xl font-bold text-pink-600 mb-6 flex items-center gap-2">
-            <ShoppingBag size={22} />
-            Giỏ hàng của bạn
-            {items.length > 0 && (
-              <span className="ml-2 bg-pink-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                {items.length}
-              </span>
-            )}
-          </h1>
-
-          {items.length === 0 ? (
-            <div className="text-center py-20">
-              <div className="text-6xl mb-4">🛒</div>
-              <h2 className="text-lg font-semibold text-gray-500 mb-2">Giỏ hàng trống</h2>
-              <p className="text-gray-400 text-sm mb-6">Hãy tạo hộp quà đặc biệt của bạn!</p>
-              <button
-                onClick={() => openStudio()}
-                className="px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold rounded-2xl shadow-md shadow-pink-200 hover:shadow-lg transition-shadow"
-              >
-                ✨ Thiết kế ngay
-              </button>
+      <div className="mx-auto max-w-5xl px-4 py-8">
+        <h1 className="font-serif text-3xl">Giỏ đồ thuê</h1>
+        {items.length === 0 ? (
+          <div className="card mt-6 p-10 text-center">
+            <p className="text-stone-500">Giỏ đang trống.</p>
+            <div className="mt-4 flex justify-center gap-3">
+              <button onClick={() => setOpen(true)} className="btn-wine">Tìm đồ cùng AI</button>
+              <Link to={ROUTES.PRODUCTS} className="btn-ghost">Xem kho đồ</Link>
             </div>
-          ) : (
-            <>
-              <div className="space-y-4 mb-6">
-                {items.map((item) => (
-                  <CartItemCard
-                    key={item.id}
-                    item={item}
-                    onUpdate={updateItem}
-                    onRemove={removeItem}
-                  />
-                ))}
-              </div>
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-6 md:grid-cols-[1fr_320px]">
+            <ul className="space-y-4">
+              {items.map((i) => {
+                const days = rentalDays(i.startDate, i.endDate);
+                return (
+                  <li key={i.productId} className="card p-4">
+                    <div className="flex gap-4">
+                      <Link to={ROUTES.PRODUCT(i.productId)} className="h-28 w-20 shrink-0 overflow-hidden rounded-xl bg-stone-200">
+                        {i.image && <img src={i.image} alt="" loading="lazy" className="h-full w-full object-cover" />}
+                      </Link>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <Link to={ROUTES.PRODUCT(i.productId)} className="line-clamp-2 text-sm font-medium">{i.name}</Link>
+                          <button onClick={() => removeItem(i.productId)} aria-label="Xoá" className="text-stone-400 hover:text-rose-600"><Trash2 size={16} /></button>
+                        </div>
+                        <p className="text-xs text-stone-500">Size {i.size} · {formatCurrency(i.rentPricePerDay)}/ngày · cọc {formatCurrency(i.deposit)}</p>
+                        <button onClick={() => openCalendar(i.productId)}
+                          className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${i.endDate && !stale(i) ? 'bg-stone-100' : 'bg-amber-100 text-amber-800'}`}>
+                          <CalendarDays size={13} />
+                          {i.endDate ? `${formatDate(i.startDate)} → ${formatDate(i.endDate)} (${days} ngày)` : 'Chọn ngày nhận & trả đồ'}
+                        </button>
+                        {stale(i) && <p className="mt-1 text-xs text-rose-600">Ngày nhận đã qua, chọn lại nhé.</p>}
+                        {i.endDate && <p className="mt-2 text-sm font-semibold">{formatCurrency(i.rentPricePerDay * days)}</p>}
+                      </div>
+                    </div>
+                    {editing === i.productId && (
+                      <div className="mt-4 border-t border-stone-100 pt-4">
+                        <RangeCalendar blocked={blocked[i.productId] || []} start={i.startDate} end={i.endDate}
+                          onChange={(startDate, endDate) => { updateItem(i.productId, { startDate, endDate }); if (endDate) setEditing(null); }} />
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
 
-              {/* Summary */}
-              <div className="bg-white rounded-2xl border border-pink-100 p-5 shadow-sm">
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-gray-500 text-sm">Tổng cộng ({items.length} sản phẩm)</span>
-                  <span className="text-xl font-bold text-pink-600">
-                    {Number(total).toLocaleString('vi-VN')}đ
-                  </span>
-                </div>
-                <button
-                  onClick={() => navigate('/checkout')}
-                  className="w-full py-3.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold rounded-2xl shadow-lg shadow-pink-200 hover:shadow-xl transition-all flex items-center justify-center gap-2"
-                >
-                  Đặt hàng ngay
-                  <ArrowRight size={16} />
-                </button>
-                <button
-                  onClick={() => openStudio()}
-                  className="w-full mt-3 py-2.5 text-pink-400 text-sm hover:text-pink-500 transition-colors"
-                >
-                  + Thêm hộp quà khác
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+            <aside className="card h-fit space-y-2 p-5 text-sm md:sticky md:top-24">
+              <Row k="Tiền thuê" v={formatCurrency(rent)} />
+              <Row k="Tiền cọc bảo đảm" v={formatCurrency(deposit)} />
+              <Row k="Phí vận chuyển" v="Tính ở bước sau" />
+              <div className="border-t border-stone-100 pt-2"><Row k={<b>Tạm tính</b>} v={<b>{formatCurrency(rent + deposit)}</b>} /></div>
+              <p className="text-xs text-stone-500">Tiền cọc được hệ thống giữ và hoàn lại sau khi bạn trả đồ, kiểm tra không hư hỏng.</p>
+              <button disabled={!ready} onClick={() => navigate(ROUTES.CHECKOUT)} className="btn-wine mt-2 w-full py-3">Tiến hành đặt thuê</button>
+              {!ready && <p className="text-center text-xs text-amber-700">Chọn ngày thuê cho tất cả món trước nhé</p>}
+            </aside>
+          </div>
+        )}
       </div>
     </MainLayout>
   );
 }
+

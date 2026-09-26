@@ -1,71 +1,36 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getCart, addCartItem, updateCartItem, removeCartItem } from '../services/cartApi';
-import { useAuth } from './AuthContext';
+import { createContext, useContext, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 
+// Giỏ đồ thuê lưu ở trình duyệt (khách chưa đăng nhập vẫn thêm được); server kiểm tra lại lịch khi thanh toán.
+const KEY = 'lt_cart';
 const CartContext = createContext(null);
 
+const read = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
+
 export function CartProvider({ children }) {
-  const { isLoggedIn } = useAuth();
-  const [cart, setCart] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [items, setItems] = useState(read);
 
-  const fetchCart = useCallback(async () => {
-    if (!isLoggedIn) {
-      setCart(null);
-      return;
-    }
-    try {
-      setLoading(true);
-      const res = await getCart();
-      setCart(res.data);
-    } catch (err) {
-      console.error('Failed to fetch cart:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [isLoggedIn]);
+  useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(items)); } catch { /* private mode */ } }, [items]);
 
-  useEffect(() => {
-    fetchCart();
-  }, [fetchCart]);
-
-  const addItem = async (payload) => {
-    try {
-      await addCartItem(payload);
-      await fetchCart();
-      toast.success('Đã thêm vào giỏ hàng! 🎁');
-    } catch (err) {
-      toast.error('Không thể thêm vào giỏ hàng');
-      throw err;
-    }
+  /** product: { id, name, image, rentPricePerDay, deposit, size }; dates có thể để trống, chọn trong giỏ. */
+  const addItem = (product, startDate = null, endDate = null) => {
+    setItems((prev) => {
+      const rest = prev.filter((i) => i.productId !== product.id);
+      return [...rest, {
+        productId: product.id, name: product.name, image: product.image ?? product.images?.[0],
+        rentPricePerDay: product.rentPricePerDay, deposit: product.deposit, size: product.size, startDate, endDate,
+      }];
+    });
+    toast.success('Đã thêm vào giỏ');
   };
 
-  const updateItem = async (cartItemId, quantity) => {
-    try {
-      await updateCartItem(cartItemId, quantity);
-      await fetchCart();
-    } catch (err) {
-      toast.error('Không thể cập nhật số lượng');
-      throw err;
-    }
-  };
-
-  const removeItem = async (cartItemId) => {
-    try {
-      await removeCartItem(cartItemId);
-      await fetchCart();
-      toast.success('Đã xóa khỏi giỏ hàng');
-    } catch (err) {
-      toast.error('Không thể xóa sản phẩm');
-      throw err;
-    }
-  };
-
-  const itemCount = cart?.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 0;
+  const updateItem = (productId, patch) =>
+    setItems((prev) => prev.map((i) => (i.productId === productId ? { ...i, ...patch } : i)));
+  const removeItem = (productId) => setItems((prev) => prev.filter((i) => i.productId !== productId));
+  const clear = () => setItems([]);
 
   return (
-    <CartContext.Provider value={{ cart, loading, itemCount, fetchCart, addItem, updateItem, removeItem }}>
+    <CartContext.Provider value={{ items, itemCount: items.length, addItem, updateItem, removeItem, clear }}>
       {children}
     </CartContext.Provider>
   );

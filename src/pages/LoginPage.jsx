@@ -1,57 +1,32 @@
 import { useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
-import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
+import { Logo } from '../layouts/MainLayout';
 
 export default function LoginPage() {
   const { loginWithGoogle, isLoggedIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = location.state?.from?.pathname || '/';
+  const from = location.state?.from ? location.state.from.pathname + (location.state.from.search || '') : '/';
 
-  useEffect(() => {
-    if (isLoggedIn) navigate(from, { replace: true });
-  }, [isLoggedIn]);
-
-  const handleSuccess = async (credentialResponse) => {
-    try {
-      await loginWithGoogle(credentialResponse.credential);
-      toast.success('Đăng nhập thành công! 🎉');
-      navigate(from, { replace: true });
-    } catch {
-      toast.error('Đăng nhập thất bại, thử lại nhé!');
-    }
-  };
+  useEffect(() => { if (isLoggedIn) navigate(from, { replace: true }); }, [isLoggedIn, from, navigate]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-fuchsia-50 flex items-center justify-center px-4">
-      {/* Background blobs */}
-      <div className="absolute top-0 left-0 w-72 h-72 bg-pink-200/30 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-rose-200/20 rounded-full blur-3xl translate-x-1/3 translate-y-1/3" />
-
-      <div className="relative bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-pink-100 p-8 w-full max-w-sm text-center">
-        <div className="text-5xl mb-4">🎁</div>
-        <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent mb-1">
-          Love Box
-        </h1>
-        <p className="text-pink-400 text-sm mb-8">Đăng nhập để tạo hộp quà của bạn</p>
-
-        <div className="flex justify-center">
+    <div className="flex min-h-screen items-center justify-center bg-ink px-4">
+      <div className="w-full max-w-sm rounded-3xl bg-cream p-8 text-center">
+        <div className="flex flex-col items-center gap-1"><Logo className="text-3xl" /><p className="text-xs uppercase tracking-[0.2em] text-stone-500">Thích là diện, thuê là tiện</p></div>
+        <p className="mt-2 text-sm text-stone-500">Đăng nhập hoặc tạo tài khoản mới bằng Google — chỉ một chạm.</p>
+        <div className="mt-8 flex justify-center">
           <GoogleLogin
-            onSuccess={handleSuccess}
+            onSuccess={async (r) => { try { await loginWithGoogle(r.credential); navigate(from, { replace: true }); } catch { /* toast ở context */ } }}
             onError={() => toast.error('Đăng nhập thất bại!')}
-            shape="pill"
-            theme="outline"
-            text="signin_with"
-            locale="vi"
-            width="280"
+            shape="pill" text="continue_with" locale="vi" width="280"
           />
         </div>
-
-        <p className="text-pink-300 text-xs mt-6 leading-relaxed">
-          Bằng cách đăng nhập, bạn đồng ý với<br />
-          điều khoản sử dụng của Love Box 💕
+        <p className="mt-6 text-xs leading-relaxed text-stone-500">
+          Tiếp tục nghĩa là bạn đồng ý với <Link to="/terms" className="underline">Điều khoản thuê & cọc</Link> và <Link to="/privacy" className="underline">Chính sách bảo mật</Link>.
         </p>
       </div>
     </div>
