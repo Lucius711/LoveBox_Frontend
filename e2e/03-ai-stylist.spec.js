@@ -117,10 +117,10 @@ test.describe('Bước 2 — AI bóc tách từ khoá & so khớp Tags', () => {
 
   test('chỉ trả đồ khớp ≥ 80% (đúng loại đồ đã hỏi)', async () => {
     const ctx = await setProfile(U, { clothingSize: 'M', budgetMax: 500000 });
-    const r = await result(ctx, 'Veston');
+    const r = await result(ctx, 'Áo dài');
     const exact = r.results.filter((m) => !m.alternative);
     expect(exact.length).toBeGreaterThan(0);
-    for (const m of exact) expect(m.product.category).toBe('Veston');
+    for (const m of exact) expect(m.product.category).toBe('Áo dài');
     checkInvariants(r, { size: 'M', maxPrice: 500000 });
   });
 });
@@ -157,7 +157,7 @@ test.describe('Bước 3 — kết quả & xử lý ngoại lệ', () => {
     const w = await openChat(page);
     for (const chip of ['160cm', '55kg', 'Size M']) await expect(w.getByText(chip, { exact: true })).toBeVisible();
 
-    const suggestion = 'Veston kín đáo để thuyết trình';
+    const suggestion = 'Set công sở kín đáo để thuyết trình';
     await w.getByRole('button', { name: suggestion }).click();
     await expect(w.locator('div.ml-auto', { hasText: suggestion })).toBeVisible();
     await expect(w.getByText('Size gợi ý: M')).toBeVisible();
@@ -258,7 +258,7 @@ test.describe('Lịch sử chat', () => {
 
   test('API: nói tiếp cùng cuộc, tiêu đề cắt gọn, người khác không xem / sửa được', async () => {
     const ctx = await setProfile(U, { clothingSize: 'M' });
-    const first = await ask(ctx, 'Veston kín đáo để thuyết trình');
+    const first = await ask(ctx, 'Set công sở kín đáo để thuyết trình');
     const second = await ask(ctx, 'màu đen thôi', first.chatId);
     expect(second.chatId).toBe(first.chatId);
     const detail = await data(await ctx.get(`stylist/chats/${first.chatId}`));

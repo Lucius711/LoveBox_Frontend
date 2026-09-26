@@ -24,9 +24,9 @@ async function checkFilter(page, { chip, param, value, params, ok }) {
 test('phân loại theo loại trang phục', async ({ page }) => {
   const { categories } = await data(await (await guest()).get('products/meta'));
   for (const c of ['Áo dài', 'Đầm dạ hội', 'Veston', 'Đồ Cosplay/Sự kiện']) expect(categories).toContain(c);
-  const res = await checkFilter(page, { chip: 'Veston', param: 'category', value: 'Veston', ok: (p) => p.category === 'Veston' });
+  const res = await checkFilter(page, { chip: 'Áo dài', param: 'category', value: 'Áo dài', ok: (p) => p.category === 'Áo dài' });
   expect(res.totalItems).toBeGreaterThan(0);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Veston');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Áo dài');
 });
 
 test('phân loại theo phong cách', async ({ page }) => {
@@ -92,11 +92,11 @@ test('sắp xếp theo giá và phân trang 12 món/trang', async ({ page }) => 
 test('tìm kiếm theo tên / loại đồ', async ({ page }) => {
   await page.goto('/');
   const box = page.getByRole('textbox', { name: 'Tìm kiếm' }).filter({ visible: true });
-  await box.fill('Veston');
+  await box.fill('Áo dài');
   await box.press('Enter');
-  await expect(page).toHaveURL(/q=Veston/);
-  await expect(page.getByText('Kết quả cho “Veston”')).toBeVisible();
-  const res = await search({ q: 'Veston' });
+  await expect(page).toHaveURL((u) => u.searchParams.get('q') === 'Áo dài');
+  await expect(page.getByText('Kết quả cho “Áo dài”')).toBeVisible();
+  const res = await search({ q: 'Áo dài' });
   await expect(count(page)).toHaveText(`${res.totalItems} món`);
 });
 

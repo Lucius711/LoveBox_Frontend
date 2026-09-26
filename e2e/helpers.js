@@ -33,7 +33,7 @@ export const USERS = {
 /** Đồ APPROVED của e2e owner (seed trong global-setup) để test luồng thuê. */
 export const E2E_PRODUCT = { id: '00000000-0000-0000-0000-0000000e2ea1', name: 'E2E Đầm thử nghiệm đỏ đô' };
 /** Đồ demo có sẵn trong V2 (chủ là Lentique Studio — V2 + V9). */
-export const SEED_PRODUCT = { id: '00000000-0000-0000-0000-000000000014', name: 'Set công sở be tối giản' };
+export const SEED_PRODUCT = { id: '00000000-0000-0000-0000-000000000014', name: 'Set sơ mi lụa kem & chân váy đen đuôi cá' };
 
 /** Ký access token giống JwtTokenProvider (HS256) → bỏ qua Google login. */
 export function token(user, ttlSec = 3600) {

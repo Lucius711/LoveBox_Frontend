@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 const SUGGESTIONS = [
   'Đầm đỏ đô trễ vai đi prom, che được bắp tay',
   'Áo dài trắng thanh lịch chụp kỷ yếu',
-  'Veston kín đáo để thuyết trình',
+  'Set công sở kín đáo để thuyết trình',
   'Váy nàng thơ màu pastel đi sinh nhật',
 ];
 
