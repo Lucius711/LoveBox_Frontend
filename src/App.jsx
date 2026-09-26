@@ -1,13 +1,12 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ChatProvider, ChatWidget } from './components/Chat';
 import { ROUTES } from './constants';
 import HomePage from './pages/HomePage';
-import LoginPage from './pages/LoginPage';
+import LoginPage, { AuthCallback } from './pages/LoginPage';
 import ProductsPage from './pages/ProductsPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import CartPage from './pages/CartPage';
@@ -34,7 +33,6 @@ function OnboardingGate() {
 
 export default function App() {
   return (
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
       <AuthProvider>
         <CartProvider>
           <BrowserRouter>
@@ -42,6 +40,7 @@ export default function App() {
             <Toaster position="top-center" toastOptions={{ style: { borderRadius: '12px', fontSize: '14px' } }} />
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path={ROUTES.ONBOARDING} element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
               <Route element={<OnboardingGate />}>
                 <Route path="/" element={<HomePage />} />
@@ -66,6 +65,5 @@ export default function App() {
           </BrowserRouter>
         </CartProvider>
       </AuthProvider>
-    </GoogleOAuthProvider>
   );
 }
