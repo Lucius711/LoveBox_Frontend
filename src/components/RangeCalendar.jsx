@@ -60,7 +60,7 @@ export default function RangeCalendar({ blocked = [], start, end, onChange }) {
           return (
             <button key={d} type="button" disabled={disabled} onClick={() => pick(d)}
               title={blockedSet.has(d) ? 'Đã có người thuê' : undefined}
-              className={`aspect-square rounded-lg text-sm transition ${
+              className={`h-10 rounded-lg text-sm transition ${
                 edge ? 'bg-ink font-semibold text-white'
                   : inRange ? 'bg-wine-100 text-wine-800'
                   : disabled ? `text-stone-300 ${blockedSet.has(d) ? 'line-through' : ''}`

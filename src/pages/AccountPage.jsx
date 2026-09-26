@@ -55,7 +55,7 @@ function MyBookings() {
             <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => confirm('Huỷ đơn này?') && act(cancelBooking(b.id), 'Đã huỷ đơn')}>Huỷ đơn</button>
           )}
           {b.paymentMethod === 'PAYOS' && b.paymentStatus === 'UNPAID' && b.status === 'PENDING' && (
-            <Link to={`/checkout/success?code=${b.checkoutCode}`} className="btn-ghost px-3 py-1.5 text-xs">Kiểm tra thanh toán</Link>
+            <Link to={`/checkout/success?code=${b.checkoutCode}`} className="btn-wine px-3 py-1.5 text-xs">Tiếp tục thanh toán</Link>
           )}
           {['RETURNED', 'COMPLETED', 'DISPUTED'].includes(b.status) && !b.reviewed && <ReviewForm onSubmit={(body) => act(reviewBooking(b.id, body), 'Cảm ơn bạn đã đánh giá')} />}
         </BookingRow>
