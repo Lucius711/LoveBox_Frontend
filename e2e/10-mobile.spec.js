@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { E2E_PRODUCT, SEED_PRODUCT, USERS, login } from './helpers.js';
+import { E2E_PRODUCT, SEED_PRODUCT, USERS, bellButton, login } from './helpers.js';
 
 // System — 4. UI/UX: Responsive cho điện thoại (80% sinh viên dùng mobile). Chạy ở project "mobile" (Pixel 7) — xem playwright.config.js
 
@@ -7,7 +7,7 @@ const PAGES = {
   guest: ['/', '/products', `/products/${SEED_PRODUCT.id}`, '/cart', '/about', '/shipping', '/terms', '/privacy', '/login'],
   renter: ['/account', '/account?tab=profile', '/account?tab=owner', '/checkout'],
   owner: ['/account?tab=owner', '/owner/products/new'],
-  admin: ['/admin', '/admin?tab=bookings', '/admin?tab=money'],
+  admin: ['/admin', '/admin?tab=owners', '/admin?tab=bookings', '/admin?tab=money', '/account'],
 };
 
 for (const [who, paths] of Object.entries(PAGES)) {
@@ -48,7 +48,7 @@ test('nút Bộ lọc nổi theo khi cuộn, lọc trong drawer', async ({ page 
   await expect(open).toHaveText(/Bộ lọc \(1\)/);
 });
 
-test('nút chat không che nút Thuê ngay', async ({ page }) => {
+test('thanh Thuê ngay dính đáy màn hình, nút chat không che', async ({ page }) => {
   await page.goto(`/products/${E2E_PRODUCT.id}`);
   const rent = page.getByRole('button', { name: 'Thuê ngay' });
   const chat = page.getByRole('button', { name: 'Mở trợ lý AI' });
@@ -56,6 +56,8 @@ test('nút chat không che nút Thuê ngay', async ({ page }) => {
   const a = await rent.boundingBox();
   const b = await chat.boundingBox();
   const apart = a.y + a.height <= b.y || b.y + b.height <= a.y || a.x + a.width <= b.x || b.x + b.width <= a.x;
+  await page.mouse.wheel(0, 600);   // cuộn vẫn thấy
+  await expect(rent).toBeInViewport();
   expect(apart, `Thuê ngay ${JSON.stringify(a)} vs chat ${JSON.stringify(b)}`).toBe(true);
 });
 
@@ -93,4 +95,12 @@ test('đặt thuê COD trọn luồng trên điện thoại', async ({ page }) =
   await page.getByText('Thanh toán khi nhận (COD)').click();
   await page.getByRole('button', { name: 'Đặt thuê', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Đặt thuê thành công!' })).toBeVisible();
+});
+
+test('chuông thông báo mở gọn trong màn hình điện thoại', async ({ page }) => {
+  await login(page, USERS.owner);
+  await page.goto('/');
+  await bellButton(page).click();
+  const panel = page.locator('header').getByText('Thông báo', { exact: true }).locator('..');
+  await expect(panel).toBeInViewport({ ratio: 1 });
 });

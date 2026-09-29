@@ -28,6 +28,11 @@ export default function ProductDetailPage() {
     getProduct(id).then(setP).catch(() => setP(false));
     getBlockedDates(id).then(setBlocked).catch(() => {});
   }, [id]);
+  // Điện thoại: thanh "Thêm vào giỏ / Thuê ngay" dính đáy màn hình → chừa chỗ để không che footer
+  useEffect(() => {
+    document.body.classList.add('pb-20', 'md:pb-0');
+    return () => document.body.classList.remove('pb-20', 'md:pb-0');
+  }, []);
 
   if (p === false) {
     return (
@@ -133,7 +138,7 @@ export default function ProductDetailPage() {
               {isMine ? (
                 <Link to={ROUTES.EDIT_PRODUCT(p.id)} className="btn-ghost mt-5 w-full py-3">Đây là đồ của bạn. Sửa thông tin</Link>
               ) : (
-                <div className="sticky bottom-3 z-10 mt-5 grid grid-cols-2 gap-3 md:static">
+                <div className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-2 gap-3 border-t border-stone-200 bg-cream/95 p-3 backdrop-blur md:static md:mt-5 md:border-0 md:bg-transparent md:p-0">
                   <button onClick={() => add(false)} className="btn-ghost py-3 shadow-sm">Thêm vào giỏ</button>
                   <button onClick={() => add(true)} className="btn-wine py-3 shadow-sm">Thuê ngay</button>
                 </div>

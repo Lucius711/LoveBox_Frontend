@@ -5,9 +5,9 @@ export default async function globalSetup() {
   const health = await fetch(`${API}/products/meta`).catch(() => null);
   if (!health?.ok) throw new Error(`Backend chưa chạy ở ${API} (đặt E2E_API_URL nếu khác)`);
 
-  // DB phải đã chạy đủ migration của backend (V8 clothing_size, V9 đổi tên Lentique)
+  // DB phải đã chạy đủ migration của backend (V13 thông báo trong tài khoản)
   const [{ v }] = await sql('SELECT max(version::int) AS v FROM flyway_schema_history WHERE success');
-  if (v < 9) throw new Error(`DB trong CONFIG mới ở migration V${v}, cần ≥ V9 → khởi động lại backend (bản mới) trỏ vào đúng DB này`);
+  if (v < 13) throw new Error(`DB trong CONFIG mới ở migration V${v}, cần ≥ V13 → khởi động lại backend (bản mới) trỏ vào đúng DB này`);
 
   const ids = Object.values(USERS).map((u) => u.id);
   await sql(`DELETE FROM dtb_reviews WHERE user_id = ANY($1)
@@ -16,6 +16,8 @@ export default async function globalSetup() {
                OR product_id IN (SELECT id FROM dtb_products WHERE owner_id = ANY($1))`, [ids]);
   await sql('DELETE FROM dtb_products WHERE owner_id = ANY($1)', [ids]); // tags/ảnh xoá theo cascade
   await sql('DELETE FROM dtb_chat_sessions WHERE user_id = ANY($1)', [ids]);
+  await sql('DELETE FROM dtb_owner_applications WHERE user_id = ANY($1)', [ids]);
+  await sql('DELETE FROM dtb_notifications WHERE user_id = ANY($1)', [ids]);
 
   for (const u of Object.values(USERS)) {
     await sql(`

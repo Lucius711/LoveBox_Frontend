@@ -5,10 +5,10 @@ import MainLayout from '../layouts/MainLayout';
 import { Tabs } from '../components/ui';
 import BookingRow from '../components/BookingRow';
 import { BOOKING_STATUS, ROUTES } from '../constants';
-import { adminBookings, adminProducts, adminConfirmRefund, adminReviewProduct, adminSetStatus, adminStats, errorMessage } from '../services/api';
+import { adminBookings, adminOwnerApplications, adminReviewOwnerApplication, adminProducts, adminConfirmRefund, adminReviewProduct, adminSetStatus, adminStats, errorMessage } from '../services/api';
 import { formatCurrency } from '../utils/format';
 
-const TABS = [['products', 'Duyệt đồ'], ['bookings', 'Đơn & tranh chấp'], ['money', 'Dòng tiền']];
+const TABS = [['products', 'Duyệt đồ'], ['owners', 'Đơn Chủ đồ'], ['bookings', 'Đơn & tranh chấp'], ['money', 'Dòng tiền']];
 
 export default function AdminPage() {
   const [params] = useSearchParams();
@@ -20,6 +20,7 @@ export default function AdminPage() {
         <Tabs items={TABS} active={tab} />
         <div className="mt-6">
           {tab === 'products' && <Moderation />}
+          {tab === 'owners' && <OwnerApplications />}
           {tab === 'bookings' && <Bookings />}
           {tab === 'money' && <Money />}
         </div>
@@ -60,6 +61,38 @@ function Moderation() {
           <div className="mt-3 flex gap-2">
             <button onClick={() => decide(p.id, true)} className="btn-dark px-4 py-2">Duyệt</button>
             <button onClick={() => decide(p.id, false)} className="btn-ghost px-4 py-2">Từ chối</button>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// ── Đơn đăng ký làm Chủ đồ: duyệt → khách thành Chủ đồ; từ chối kèm lý do ─
+function OwnerApplications() {
+  const [list, setList] = useState(null);
+  const load = useCallback(() => adminOwnerApplications('PENDING').then(setList).catch(() => setList([])), []);
+  useEffect(() => { load(); }, [load]);
+
+  const decide = (id, approve) => {
+    const reason = approve ? null : prompt('Lý do từ chối (người gửi sẽ thấy):');
+    if (!approve && !reason) return;
+    adminReviewOwnerApplication(id, { approve, reason }).then(() => { toast.success(approve ? 'Đã duyệt Chủ đồ' : 'Đã từ chối'); load(); })
+      .catch((e) => toast.error(errorMessage(e)));
+  };
+
+  if (list === null) return <p className="text-stone-500">Đang tải…</p>;
+  if (!list.length) return <p className="card p-8 text-center text-stone-500">Không có đơn đăng ký Chủ đồ nào chờ duyệt.</p>;
+  return (
+    <ul className="space-y-4">
+      {list.map((a) => (
+        <li key={a.id} className="card p-4 text-sm">
+          <p className="font-semibold">{a.userName} <span className="font-normal text-stone-500">· {a.userEmail}</span></p>
+          <p className="text-stone-500">SĐT {a.phone} · {a.address} · STK {a.bankAccount} ({a.bankName}) · Gửi {new Date(a.createdAt).toLocaleString('vi-VN')}</p>
+          <p className="mt-2 whitespace-pre-line text-stone-700">{a.intro}</p>
+          <div className="mt-3 flex gap-2">
+            <button onClick={() => decide(a.id, true)} className="btn-dark px-4 py-2">Duyệt</button>
+            <button onClick={() => decide(a.id, false)} className="btn-ghost px-4 py-2">Từ chối</button>
           </div>
         </li>
       ))}

@@ -25,14 +25,14 @@ const u = (n, key, role, onboarded = true) => ({
 export const USERS = {
   renter: u(1, 'renter', 'RENTER'),
   newbie: u(2, 'newbie', 'RENTER', false), // chưa onboarding
-  fresh: u(3, 'fresh', 'RENTER'),          // dùng để "Trở thành Chủ đồ"
+  fresh: u(3, 'fresh', 'RENTER'),          // gửi đơn làm Chủ đồ → được duyệt
   owner: u(4, 'owner', 'OWNER'),
   admin: u(5, 'admin', 'ADMIN'),
-  stylist: u(6, 'stylist', 'RENTER'),  // riêng cho test AI (hồ sơ bị đổi liên tục)
+  stylist: u(6, 'stylist', 'RENTER'),  // riêng cho test AI (hồ sơ bị đổi liên tục); đơn Chủ đồ bị từ chối
 };
 /** Đồ APPROVED của e2e owner (seed trong global-setup) để test luồng thuê. */
 export const E2E_PRODUCT = { id: '00000000-0000-0000-0000-0000000e2ea1', name: 'E2E Đầm thử nghiệm đỏ đô' };
-/** Đồ demo có sẵn trong V2 (chủ là Lentique Studio — V2 + V9). */
+/** Đồ demo có sẵn (V10 thay bộ đồ demo; chủ là Lentique Studio). */
 export const SEED_PRODUCT = { id: '00000000-0000-0000-0000-000000000014', name: 'Set sơ mi lụa kem & chân váy đen đuôi cá' };
 
 /** Ký access token giống JwtTokenProvider (HS256) → bỏ qua Google login. */
@@ -124,3 +124,26 @@ export async function openChat(page) {
   await page.getByRole('button', { name: 'Mở trợ lý AI' }).click();
   return chatWidget(page);
 }
+
+/** Body hợp lệ cho API tạo đồ; ảnh là URL presign R2 (backend chỉ nhận ảnh trên R2 của mình). */
+export async function validBody(owner, name, patch = {}) {
+  const images = [];
+  for (let i = 0; i < 3; i++)
+    images.push((await data(await owner.post('files/presign', { data: { contentType: 'image/png', size: PNG.length } }))).publicUrl);
+  return {
+    name, description: 'Đồ đăng thử bằng kiểm thử tự động (E2E).', category: 'Váy dự tiệc', size: 'S',
+    bustMax: 84, waistMax: 64, hipMax: 90, itemCondition: 'Mới 99%', retailPrice: 900000, rentPricePerDay: 90000,
+    depositPercent: 60, colors: ['Đỏ đô'], styles: ['Thanh lịch'], occasions: ['Kỷ yếu'], features: [], images, ...patch,
+  };
+}
+
+/** Body hợp lệ cho đơn đăng ký làm Chủ đồ. */
+export async function ownerApplyBody(patch = {}) {
+  const { banks } = await data(await (await api()).get('products/meta'));
+  return { phone: '0944444444', address: '1 Đường Test, Q1', bankAccount: '12345678', bankName: banks[0],
+    intro: 'Cho thuê vài bộ đầm dự tiệc size S-M, mặc 1 lần (E2E).', agreed: true, ...patch };
+}
+
+/** Header: nút tài khoản (kèm nhãn vai trò) và chuông thông báo. */
+export const accountButton = (page) => page.locator('header').getByRole('button', { name: 'Tài khoản' });
+export const bellButton = (page) => page.locator('header').getByRole('button', { name: 'Thông báo' });

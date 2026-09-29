@@ -21,7 +21,7 @@ import ShippingPage from './pages/ShippingPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
 
-const OWNER = ['OWNER', 'ADMIN'];
+const OWNER = ['OWNER'];   // admin chỉ duyệt, không đăng đồ
 
 /** Đăng nhập lần đầu (chưa có hồ sơ phong cách) → đưa sang bước thiết lập. */
 function OnboardingGate() {

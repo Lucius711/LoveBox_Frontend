@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { USERS, api, data, login } from './helpers.js';
 
-// Hồ sơ phong cách (nguồn số đo / ngân sách / gu cho AI) + thông tin liên hệ & STK nhận hoàn cọc (Users.BankAccount)
+// Hồ sơ phong cách (nguồn số đo / ngân sách / gu cho AI) + thông tin liên hệ & STK nhận hoàn cọc (Users.BankAccount) — theo từng vai trò
 const row = (page, label) => page.locator('dl > div').filter({ hasText: label }).locator('dd');
 
 test('người mới đăng nhập → onboarding từng bước, chọn size thay cho số đo 3 vòng', async ({ page }) => {
@@ -67,4 +67,20 @@ test('API từ chối số đo / size không hợp lệ', async () => {
   const renter = await api(USERS.renter);
   for (const bad of [{ clothingSize: 'XXL' }, { heightCm: 50 }, { weightKg: 500 }, { bust: 10 }])
     expect((await renter.put('users/me/style-profile', { data: bad })).status(), JSON.stringify(bad)).toBe(400);
+});
+
+test('hồ sơ Admin chỉ có thông tin liên hệ (không có gu AI, STK hoàn cọc, điểm uy tín)', async ({ page }) => {
+  await login(page, USERS.admin);
+  await page.goto('/account');
+  await expect(page.getByRole('heading', { name: 'Thông tin liên hệ' })).toBeVisible();
+  await expect(page.getByLabel('Họ tên')).toBeVisible();
+  await expect(page.getByLabel('Số điện thoại')).toBeVisible();
+  for (const hidden of ['Hồ sơ phong cách', 'STK nhận hoàn cọc', 'Ngân hàng', 'Địa chỉ']) await expect(page.getByText(hidden, { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/Uy tín/)).toHaveCount(0);
+});
+
+test('điểm uy tín hiện cho khách thuê (Users.TrustScore)', async ({ page }) => {
+  await login(page, USERS.renter);
+  await page.goto('/account?tab=profile');
+  await expect(page.getByText(/Uy tín \d+\/100/)).toBeVisible();
 });

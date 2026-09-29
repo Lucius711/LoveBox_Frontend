@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
-import { ClipboardList, LogOut, Menu, Search, ShoppingBag, Shield, User, X } from 'lucide-react';
+import { Bell, ClipboardList, Store, LogOut, Menu, Search, ShoppingBag, Shield, User, X } from 'lucide-react';
 import { ROUTES } from '../constants';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { getNotifications, readNotifications } from '../services/api';
 
 const NAV = [
   { to: ROUTES.HOME, label: 'Trang chủ', end: true },
@@ -45,6 +46,54 @@ function SearchBar({ className = '' }) {
   );
 }
 
+const ROLE_LABEL = { ADMIN: 'Quản trị', OWNER: 'Chủ đồ', RENTER: 'Khách thuê' };
+const RoleBadge = ({ role }) => (
+  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${role === 'ADMIN' ? 'bg-wine-600 text-white' : role === 'OWNER' ? 'bg-amber-100 text-amber-800' : 'bg-stone-100 text-stone-600'}`}>
+    {ROLE_LABEL[role] || 'Khách thuê'}
+  </span>
+);
+
+/** Chuông thông báo: có người thuê, đồ / đơn Chủ đồ được duyệt… Hỏi lại mỗi 60s; mở ra là đánh dấu đã đọc. */
+function NotificationBell() {
+  const [inbox, setInbox] = useState({ unread: 0, items: [] });
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const load = () => getNotifications().then(setInbox).catch(() => {});
+    load();
+    const t = setInterval(load, 60000);
+    const close = (e) => ref.current && !ref.current.contains(e.target) && setOpen(false);
+    document.addEventListener('mousedown', close);
+    return () => { clearInterval(t); document.removeEventListener('mousedown', close); };
+  }, []);
+  const toggle = () => {
+    setOpen((o) => !o);
+    if (!open && inbox.unread) readNotifications().then(() => setInbox((i) => ({ ...i, unread: 0 }))).catch(() => {});
+  };
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={toggle} aria-label="Thông báo" className="relative rounded-full p-2 hover:bg-stone-100">
+        <Bell size={20} />
+        {inbox.unread > 0 && (
+          <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-wine-600 px-1 text-[10px] font-bold text-white">{inbox.unread}</span>
+        )}
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-2 max-h-96 w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-2xl border border-stone-200 bg-white shadow-xl">
+          <p className="border-b border-stone-100 px-4 py-3 text-sm font-semibold">Thông báo</p>
+          {inbox.items.length ? inbox.items.map((n) => (
+            <Link key={n.id} to={n.link || '#'} onClick={() => setOpen(false)}
+              className={`block border-b border-stone-50 px-4 py-3 text-sm hover:bg-stone-50 ${n.read ? 'text-stone-500' : 'font-medium'}`}>
+              {n.title}
+              <span className="mt-0.5 block text-xs font-normal text-stone-400">{new Date(n.createdAt).toLocaleString('vi-VN')}</span>
+            </Link>
+          )) : <p className="px-4 py-6 text-center text-sm text-stone-500">Chưa có thông báo nào.</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function UserMenu({ user, onLogout }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -55,7 +104,8 @@ function UserMenu({ user, onLogout }) {
   }, []);
   return (
     <div ref={ref} className="relative">
-      <button onClick={() => setOpen((o) => !o)} aria-label="Tài khoản" className="flex items-center rounded-full p-0.5 hover:ring-2 hover:ring-stone-200">
+      <button onClick={() => setOpen((o) => !o)} aria-label="Tài khoản" className="flex items-center gap-2 rounded-full p-0.5 hover:ring-2 hover:ring-stone-200">
+        <span className="hidden sm:inline"><RoleBadge role={user.role} /></span>
         {user.avatarUrl
           ? <img src={user.avatarUrl} alt="" referrerPolicy="no-referrer" className="h-8 w-8 rounded-full object-cover" />
           : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-xs font-bold text-white">{(user.name || 'U')[0]}</span>}
@@ -63,11 +113,16 @@ function UserMenu({ user, onLogout }) {
       {open && (
         <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-xl">
           <div className="border-b border-stone-100 px-4 py-3">
-            <p className="truncate text-sm font-semibold">{user.name}</p>
+            <p className="flex items-center gap-2 text-sm font-semibold"><span className="truncate">{user.name}</span><RoleBadge role={user.role} /></p>
             <p className="truncate text-xs text-stone-500">{user.email}</p>
           </div>
           <Link to={ROUTES.PROFILE} onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-stone-50"><User size={15} />Hồ sơ của tôi</Link>
-          <Link to={ROUTES.ACCOUNT} onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-stone-50"><ClipboardList size={15} />Đơn thuê & cho thuê</Link>
+          {user.role !== 'ADMIN' && (   // admin chỉ duyệt, không thuê / cho thuê
+            <Link to={ROUTES.ACCOUNT} onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-stone-50"><ClipboardList size={15} />{user.role === 'OWNER' ? 'Đơn thuê & cho thuê' : 'Đơn thuê của tôi'}</Link>
+          )}
+          {user.role === 'RENTER' && (
+            <Link to={`${ROUTES.ACCOUNT}?tab=owner`} onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-stone-50"><Store size={15} />Đăng ký làm Chủ đồ</Link>
+          )}
           {user.role === 'ADMIN' && (
             <Link to={ROUTES.ADMIN} onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-stone-50"><Shield size={15} />Quản trị</Link>
           )}
@@ -108,6 +163,7 @@ export default function MainLayout({ children }) {
                 <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-wine-600 px-1 text-[10px] font-bold text-white">{itemCount}</span>
               )}
             </Link>
+            {isLoggedIn && <NotificationBell />}
             {isLoggedIn
               ? <UserMenu user={user} onLogout={logout} />
               : <button onClick={() => navigate(ROUTES.LOGIN)} className="btn-dark px-4 py-2"><span className="sm:hidden">Đăng nhập</span><span className="hidden sm:inline">Đăng nhập / Đăng ký</span></button>}
@@ -135,7 +191,9 @@ export default function MainLayout({ children }) {
             <p className="mt-3 max-w-xs text-sm leading-relaxed">Thuê đồ đẹp cho mọi dịp — trợ lý AI chọn giúp bộ vừa dáng, hợp túi tiền.</p>
           </div>
           <FooterCol title="Khám phá" links={[[ROUTES.PRODUCTS, 'Danh mục'], [ROUTES.ABOUT, 'Về chúng tôi']]} />
-          <FooterCol title="Cho thuê" links={[[ROUTES.NEW_PRODUCT, 'Đăng đồ cho thuê'], [ROUTES.ACCOUNT, 'Quản lý đơn thuê']]} />
+          {user?.role === 'ADMIN'   // admin chỉ duyệt, không đăng đồ
+            ? <FooterCol title="Quản trị" links={[[ROUTES.ADMIN, 'Duyệt đồ & đơn thuê']]} />
+            : <FooterCol title="Cho thuê" links={[[ROUTES.NEW_PRODUCT, 'Đăng đồ cho thuê'], [ROUTES.ACCOUNT, 'Quản lý đơn thuê']]} />}
           <FooterCol title="Hỗ trợ" links={[['/shipping', 'Giao nhận & trả đồ'], ['/privacy', 'Chính sách bảo mật'], ['/terms', 'Điều khoản thuê & cọc']]} />
         </div>
         <div className="border-t border-stone-800">

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { api, chatWidget, data } from './helpers.js';
+import { USERS, accountButton, api, bellButton, chatWidget, data, login } from './helpers.js';
 
 // Requirement brief — 1. MODULE TRANG CHỦ
 test.describe('1. Trang chủ', () => {
@@ -17,6 +17,16 @@ test.describe('1. Trang chủ', () => {
 
     await header.getByRole('button', { name: 'Đăng nhập / Đăng ký' }).click();
     await expect(page).toHaveURL(/\/login/);
+  });
+
+  test('đã đăng nhập: header thay nút Đăng nhập bằng chuông thông báo + tài khoản kèm vai trò', async ({ page }) => {
+    for (const [who, label] of [['renter', 'Khách thuê'], ['owner', 'Chủ đồ'], ['admin', 'Quản trị']]) {
+      await login(page, USERS[who]);
+      await page.goto('/');
+      await expect(page.locator('header').getByRole('button', { name: 'Đăng nhập / Đăng ký' })).toHaveCount(0);
+      await expect(bellButton(page)).toBeVisible();
+      await expect(accountButton(page)).toContainText(label);
+    }
   });
 
   test.fixme('header có mục "Cách thức thuê"', async ({ page }) => {

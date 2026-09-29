@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { E2E_PRODUCT, SEED_PRODUCT, USERS, api, data, futureDate, login, money, pickDates } from './helpers.js';
+import { E2E_PRODUCT, SEED_PRODUCT, USERS, api, bookingRow, checkoutBody, data, futureDate, login, money, pickDates } from './helpers.js';
 
 // Requirement brief — 4. LUỒNG THANH TOÁN ; System — 2.3 Thanh toán & Tính tiền cọc
 // Đồ e2e: 100.000đ/ngày, giá niêm yết 1.000.000đ, cọc 50% = 500.000đ. Ship hoả tốc 30.000đ/đơn.
@@ -100,6 +100,24 @@ test('thanh toán QR: hiện mã QR (PayOS đã cấu hình) hoặc báo lỗi r
     await expect(page.getByText('Đang chờ thanh toán…')).toBeVisible();
     await expect(page.getByRole('link', { name: /Mở trang thanh toán PayOS/ })).toBeVisible();
   }
+});
+
+test('đơn QR chưa thanh toán → "Tiếp tục thanh toán" từ Đơn thuê của tôi', async ({ page }) => {
+  const res = await (await api(USERS.renter)).post('bookings/checkout', { data: checkoutBody(SEED_PRODUCT.id, futureDate(8, 3), futureDate(9, 3), 'PAYOS') });
+  test.skip(!res.ok(), 'PayOS chưa cấu hình ở backend này');
+  const { checkoutCode, bookings } = (await res.json()).data;
+  await login(page, USERS.renter);
+  await page.goto('/account');
+  const row = bookingRow(page, bookings[0].code);
+  await expect(row).toContainText('Chưa thanh toán');
+  await row.getByRole('link', { name: 'Tiếp tục thanh toán' }).click();
+  await expect(page).toHaveURL(new RegExp(`/checkout/success\\?code=${checkoutCode}`));
+  await expect(page.getByRole('heading', { name: 'Quét mã để thanh toán' })).toBeVisible();
+  await expect(page.getByText(`Mã đơn ${checkoutCode}`)).toBeVisible();
+  await expect(page.getByText('Đang chờ thanh toán…')).toBeVisible();
+  await page.getByRole('link', { name: 'Để sau, xem trong Đơn thuê của tôi' }).click();
+  await expect(page).toHaveURL(/\/account/);
+  await data(await (await api(USERS.renter)).post(`bookings/${bookings[0].id}/cancel`));   // trả lịch
 });
 
 test.fixme('checkout có ô nhập STK nhận tiền hoàn cọc', async ({ page }) => {

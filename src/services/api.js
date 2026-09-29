@@ -21,7 +21,12 @@ export const forYou = () => data(api.get('/stylist/for-you'));
 
 // Người dùng
 export const updateProfile = (body) => data(api.patch('/users/me', body));
-export const becomeOwner = () => data(api.post('/users/me/become-owner'));
+/** Đơn đăng ký làm Chủ đồ gần nhất (null nếu chưa gửi) / gửi đơn mới. Admin duyệt mới thành Chủ đồ. */
+export const myOwnerApplication = () => data(api.get('/users/me/owner-application'));
+export const applyOwner = (body) => data(api.post('/users/me/owner-application', body));
+/** Thông báo trong tài khoản: { unread, items: [{ id, title, link, read, createdAt }] } */
+export const getNotifications = () => data(api.get('/notifications'));
+export const readNotifications = () => data(api.post('/notifications/read'));
 export const saveStyleProfile = (body) => data(api.put('/users/me/style-profile', body));
 
 // Thuê / thanh toán
@@ -45,6 +50,8 @@ export const adminProducts = (status) => data(api.get('/admin/products', { param
 export const adminReviewProduct = (id, body) => data(api.post(`/admin/products/${id}/review`, body));
 export const adminBookings = (status) => data(api.get('/admin/bookings', { params: { status } }));
 export const adminSetStatus = (id, body) => data(api.patch(`/admin/bookings/${id}/status`, body));
+export const adminOwnerApplications = (status) => data(api.get('/admin/owner-applications', { params: { status } }));
+export const adminReviewOwnerApplication = (id, body) => data(api.post(`/admin/owner-applications/${id}/review`, body));
 export const adminStats = () => data(api.get('/admin/stats'));
 /** Admin đã chuyển khoản hoàn tiền thủ công; ref = mã giao dịch ngân hàng (tuỳ chọn). */
 export const adminConfirmRefund = (id, ref) => data(api.post(`/admin/bookings/${id}/refund/confirm`, { ref }));

@@ -21,12 +21,14 @@ async function checkFilter(page, { chip, param, value, params, ok }) {
   return res;
 }
 
-test('phân loại theo loại trang phục', async ({ page }) => {
+test('phân loại theo loại trang phục (Áo dài, Đầm dạ hội, Veston, Đồ Cosplay/Sự kiện...)', async ({ page }) => {
   const { categories } = await data(await (await guest()).get('products/meta'));
-  for (const c of ['Áo dài', 'Đầm dạ hội', 'Veston', 'Đồ Cosplay/Sự kiện']) expect(categories).toContain(c);
-  const res = await checkFilter(page, { chip: 'Áo dài', param: 'category', value: 'Áo dài', ok: (p) => p.category === 'Áo dài' });
-  expect(res.totalItems).toBeGreaterThan(0);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Áo dài');
+  for (const c of ['Áo dài', 'Đầm dạ hội', 'Veston', 'Đồ Cosplay/Sự kiện']) {
+    expect(categories).toContain(c);
+    await checkFilter(page, { chip: c, param: 'category', value: c, ok: (p) => p.category === c });   // kho hết loại này → "Không có món nào khớp"
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(c);
+  }
+  expect((await search({ category: 'Áo dài' })).totalItems).toBeGreaterThan(0);
 });
 
 test('phân loại theo phong cách', async ({ page }) => {

@@ -11,21 +11,24 @@ import { useChat } from '../components/Chat';
 import BankSelect from '../components/BankSelect';
 import StyleProfileForm, { emptyProfile, toRequest } from '../components/StyleProfileForm';
 import {
-  becomeOwner, getMeta, saveStyleProfile, cancelBooking, errorMessage, hideProduct, myBookings, ownerBookings, ownerProducts,
+  applyOwner, myOwnerApplication, getMeta, saveStyleProfile, cancelBooking, errorMessage, hideProduct, myBookings, ownerBookings, ownerProducts,
   ownerSetStatus, ownerStats, reviewBooking, updateProfile,
 } from '../services/api';
 import { formatCurrency } from '../utils/format';
 
 const TABS = [['bookings', 'Đơn thuê'], ['owner', 'Cho thuê'], ['profile', 'Hồ sơ']];
+const RENTER_TABS = [['bookings', 'Đơn thuê'], ['owner', 'Đăng ký Chủ đồ'], ['profile', 'Hồ sơ']];
 
 export default function AccountPage() {
   const [params] = useSearchParams();
-  const tab = params.get('tab') || 'bookings';
+  const role = useAuth().user?.role;
+  const isAdmin = role === 'ADMIN';   // admin chỉ duyệt: không có Đơn thuê / Cho thuê, chỉ Hồ sơ
+  const tab = isAdmin ? 'profile' : params.get('tab') || 'bookings';
   return (
     <MainLayout>
       <div className="mx-auto max-w-4xl px-4 py-8">
         <h1 className="font-serif text-3xl">Tài khoản</h1>
-        <Tabs items={TABS} active={tab} />
+        <Tabs items={isAdmin ? TABS.filter(([k]) => k === 'profile') : role === 'OWNER' ? TABS : RENTER_TABS} active={tab} />
         <div className="mt-6">
           {tab === 'bookings' && <MyBookings />}
           {tab === 'owner' && <OwnerPanel />}
@@ -87,12 +90,74 @@ const OWNER_ACTIONS = {
   RENTED: [['RETURNED', 'Đã nhận lại đồ']],
 };
 
-function OwnerPanel() {
+/** Khách thuê gửi đơn làm Chủ đồ → admin duyệt. Chưa gửi / bị từ chối: hiện form; đang chờ: hiện trạng thái. */
+function OwnerApply() {
   const { user, refreshUser } = useAuth();
+  const [app, setApp] = useState(undefined);   // undefined = đang tải, null = chưa gửi
+  const [banks, setBanks] = useState([]);
+  const [form, setForm] = useState({ phone: user?.phone || '', address: user?.address || '', bankAccount: user?.bankAccount || '', bankName: user?.bankName || '', intro: '', agreed: false });
+  useEffect(() => {
+    myOwnerApplication().then((a) => {
+      setApp(a ?? null);   // chưa gửi đơn: API bỏ trường data (null) → undefined
+      if (a?.status === 'APPROVED') refreshUser();   // vừa được duyệt → tải lại role để mở tab Cho thuê
+      if (a?.status === 'REJECTED') setForm((f) => ({ ...f, ...a, agreed: false }));
+    }).catch(() => setApp(null));
+    getMeta().then((m) => setBanks(m.banks)).catch(() => {});
+  }, []);   // eslint-disable-line react-hooks/exhaustive-deps -- chỉ tải 1 lần khi mở tab
+  const f = (k) => ({ value: form[k], onChange: (e) => setForm((s) => ({ ...s, [k]: e.target.value })) });
+  const submit = (e) => {
+    e.preventDefault();
+    const { phone, address, bankAccount, bankName, intro, agreed } = form;
+    applyOwner({ phone, address, bankAccount, bankName, intro, agreed })
+      .then((a) => { setApp(a); toast.success('Đã gửi đơn, admin sẽ duyệt sớm'); }).catch((err) => toast.error(errorMessage(err)));
+  };
+
+  if (app === undefined) return <p className="text-stone-500">Đang tải…</p>;
+  if (app?.status === 'PENDING' || app?.status === 'APPROVED') {
+    return (
+      <div className="card p-8 text-center">
+        <h2 className="font-serif text-2xl">{app.status === 'PENDING' ? 'Đơn đăng ký Chủ đồ đang chờ duyệt' : 'Đơn đã được duyệt'}</h2>
+        <p className="mx-auto mt-2 max-w-md text-sm text-stone-500">
+          {app.status === 'PENDING' ? 'Admin sẽ xem xét trong 24h. Bạn sẽ nhận email khi có kết quả.' : 'Đang mở tính năng cho thuê…'}
+        </p>
+        <p className="mt-4 text-xs text-stone-400">Gửi lúc {new Date(app.createdAt).toLocaleString('vi-VN')}</p>
+      </div>
+    );
+  }
+  return (
+    <form onSubmit={submit} className="card space-y-4 p-6">
+      <div>
+        <h2 className="font-serif text-2xl">Đăng ký làm Chủ đồ</h2>
+        <p className="mt-1 text-sm text-stone-500">Chủ đồ được đăng đồ cho thuê, nhận thông báo khi có người thuê, xác nhận đơn và theo dõi doanh thu. Admin duyệt đơn trước để tránh hàng giả, kém chất lượng.</p>
+      </div>
+      {app?.status === 'REJECTED' && (
+        <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">Đơn trước chưa được duyệt. Lý do: <b>{app.rejectReason}</b>. Bạn sửa lại và gửi đơn mới nhé.</p>
+      )}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Số điện thoại"><input className="input" required pattern="0\d{9,10}" inputMode="tel" {...f('phone')} /></Field>
+        <Field label="Địa chỉ lấy / nhận lại đồ"><input className="input" required maxLength={500} {...f('address')} /></Field>
+        <Field label="STK nhận tiền thuê"><input className="input" required pattern="\d{6,20}" inputMode="numeric" {...f('bankAccount')} /></Field>
+        <Field label="Ngân hàng"><BankSelect banks={banks} required {...f('bankName')} /></Field>
+      </div>
+      <Field label="Bạn định cho thuê đồ gì?">
+        <textarea className="input min-h-28" required minLength={20} maxLength={1000} {...f('intro')}
+          placeholder="Vd: 5 bộ áo dài lụa và 3 đầm dạ hội size S-M, đa số mặc 1-2 lần, có hoá đơn mua…" />
+      </Field>
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" className="mt-1" checked={form.agreed} onChange={(e) => setForm((s) => ({ ...s, agreed: e.target.checked }))} required />
+        <span>Tôi cam kết đồ đăng lên là hàng thật, đúng mô tả, và đồng ý <Link to="/terms" className="underline" target="_blank">điều khoản Chủ đồ</Link>.</span>
+      </label>
+      <button className="btn-wine">Gửi đơn đăng ký</button>
+    </form>
+  );
+}
+
+function OwnerPanel() {
+  const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [products, setProducts] = useState([]);
   const [bookings, setBookings] = useState([]);
-  const isOwner = user?.role === 'OWNER' || user?.role === 'ADMIN';
+  const isOwner = user?.role === 'OWNER';
 
   const load = useCallback(() => {
     ownerStats().then(setStats).catch(() => {});
@@ -101,17 +166,7 @@ function OwnerPanel() {
   }, []);
   useEffect(() => { if (isOwner) load(); }, [isOwner, load]);
 
-  if (!isOwner) {
-    return (
-      <div className="card p-8 text-center">
-        <h2 className="font-serif text-2xl">Cho thuê đồ trên Lentique</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm text-stone-500">Đăng đồ kèm ảnh & số đo, admin duyệt trước khi hiển thị. Bạn nhận thông báo khi có người thuê, xác nhận đơn và theo dõi doanh thu tại đây.</p>
-        <button className="btn-wine mt-5" onClick={() => becomeOwner().then(refreshUser).then(() => toast.success('Bạn đã là Chủ đồ!')).catch((e) => toast.error(errorMessage(e)))}>
-          Trở thành Chủ đồ
-        </button>
-      </div>
-    );
-  }
+  if (!isOwner) return <OwnerApply />;
 
   const act = (id, status) => ownerSetStatus(id, { status }).then(() => { toast.success('Đã cập nhật'); load(); }).catch((e) => toast.error(errorMessage(e)));
   const pendingCount = bookings.filter((b) => b.status === 'PENDING').length;
@@ -178,9 +233,10 @@ const Stat = ({ k, v, highlight }) => (
 
 // ── Hồ sơ ──────────────────────────────────────────────────────────────
 function Profile() {
+  const isAdmin = useAuth().user?.role === 'ADMIN';   // admin không thuê đồ → không cần gu AI / STK hoàn cọc
   return (
     <div className="space-y-6">
-      <StyleProfile />
+      {!isAdmin && <StyleProfile />}
       <ContactInfo />
     </div>
   );
@@ -248,6 +304,7 @@ function ContactInfo() {
   const [form, setForm] = useState({ name: user?.name || '', phone: user?.phone || '', address: user?.address || '', bankAccount: user?.bankAccount || '', bankName: user?.bankName || '' });
   useEffect(() => { getMeta().then((m) => setBanks(m.banks)).catch(() => {}); }, []);
   const f = (k) => ({ value: form[k], onChange: (e) => setForm((s) => ({ ...s, [k]: e.target.value })) });
+  const isAdmin = user?.role === 'ADMIN';
   const save = (e) => {
     e.preventDefault();
     updateProfile(form).then(refreshUser).then(() => toast.success('Đã lưu')).catch((err) => toast.error(errorMessage(err)));
@@ -255,15 +312,17 @@ function ContactInfo() {
   return (
     <form onSubmit={save} className="card space-y-4 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-        <h2 className="font-semibold">Thông tin liên hệ & nhận hoàn cọc</h2>
-        <span className="text-stone-500">{user?.email} · {{ RENTER: 'Khách thuê', OWNER: 'Chủ đồ', ADMIN: 'Admin' }[user?.role]} · Uy tín <b>{user?.trustScore}</b>/100</span>
+        <h2 className="font-semibold">{isAdmin ? 'Thông tin liên hệ' : 'Thông tin liên hệ & nhận hoàn cọc'}</h2>
+        <span className="text-stone-500">{user?.email} · {{ RENTER: 'Khách thuê', OWNER: 'Chủ đồ', ADMIN: 'Admin' }[user?.role]}{!isAdmin && <> · Uy tín <b>{user?.trustScore}</b>/100</>}</span>
       </div>
       <Field label="Họ tên"><input className="input" maxLength={255} {...f('name')} /></Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Số điện thoại"><input className="input" pattern="0\d{9,10}" inputMode="tel" {...f('phone')} /></Field>
-        <Field label="Địa chỉ"><input className="input" maxLength={500} {...f('address')} /></Field>
-        <Field label="STK nhận hoàn cọc"><input className="input" pattern="\d{6,20}" inputMode="numeric" {...f('bankAccount')} /></Field>
-        <Field label="Ngân hàng"><BankSelect banks={banks} {...f('bankName')} /></Field>
+        {!isAdmin && <>
+          <Field label="Địa chỉ"><input className="input" maxLength={500} {...f('address')} /></Field>
+          <Field label="STK nhận hoàn cọc"><input className="input" pattern="\d{6,20}" inputMode="numeric" {...f('bankAccount')} /></Field>
+          <Field label="Ngân hàng"><BankSelect banks={banks} {...f('bankName')} /></Field>
+        </>}
       </div>
       <button className="btn-dark">Lưu thông tin</button>
     </form>

@@ -14,6 +14,6 @@ export default function ProtectedRoute({ children, roles }) {
     );
   }
   if (!isLoggedIn) return <Navigate to="/login" state={{ from: location }} replace />;
-  if (roles && !roles.includes(user?.role)) return <Navigate to="/account?tab=owner" replace />;
+  if (roles && !roles.includes(user?.role)) return <Navigate to={user?.role === 'ADMIN' ? '/admin' : '/account?tab=owner'} replace />;
   return children;
 }
