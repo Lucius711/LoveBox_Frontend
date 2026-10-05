@@ -5,20 +5,21 @@ import MainLayout from '../layouts/MainLayout';
 import { Tabs } from '../components/ui';
 import BookingRow from '../components/BookingRow';
 import { BOOKING_STATUS, ROUTES } from '../constants';
-import { adminBookings, adminOwnerApplications, adminReviewOwnerApplication, adminProducts, adminConfirmRefund, adminReviewProduct, adminSetStatus, adminStats, errorMessage } from '../services/api';
+import { adminBookings, adminOwnerApplications, adminReviewOwnerApplication, adminProducts, adminConfirmRefund, adminReviewProduct, adminSetStatus, adminStats, adminTraffic, errorMessage } from '../services/api';
 import { formatCurrency } from '../utils/format';
 
-const TABS = [['products', 'Duyệt đồ'], ['owners', 'Đơn Chủ đồ'], ['bookings', 'Đơn & tranh chấp'], ['money', 'Dòng tiền']];
+const TABS = [['traffic', 'Truy cập & đặt thuê'], ['products', 'Duyệt đồ'], ['owners', 'Đơn Chủ đồ'], ['bookings', 'Đơn & tranh chấp'], ['money', 'Dòng tiền']];
 
 export default function AdminPage() {
   const [params] = useSearchParams();
-  const tab = params.get('tab') || 'products';
+  const tab = params.get('tab') || 'traffic';
   return (
     <MainLayout>
       <div className="mx-auto max-w-5xl px-4 py-8">
         <h1 className="font-serif text-3xl">Quản trị</h1>
         <Tabs items={TABS} active={tab} />
         <div className="mt-6">
+          {tab === 'traffic' && <Traffic />}
           {tab === 'products' && <Moderation />}
           {tab === 'owners' && <OwnerApplications />}
           {tab === 'bookings' && <Bookings />}
@@ -26,6 +27,54 @@ export default function AdminPage() {
         </div>
       </div>
     </MainLayout>
+  );
+}
+
+// ── Người truy cập web vs người thực sự đặt thuê ─────────────────────────
+function Traffic() {
+  const [days, setDays] = useState(7);
+  const [s, setS] = useState(null);
+  useEffect(() => { setS(null); adminTraffic(days).then(setS).catch(() => setS({ total: {}, daily: [] })); }, [days]);
+  const pct = (a, b) => (b ? `${((a / b) * 100).toFixed(1)}%` : '—');
+  const today = s?.daily[0] || {};
+  const max = Math.max(1, ...(s?.daily || []).map((d) => d.visitors));
+  return (
+    <>
+      <div className="mb-4 flex gap-2">
+        {[[1, 'Hôm nay'], [7, '7 ngày'], [30, '30 ngày'], [90, '90 ngày']].map(([n, l]) => (
+          <button key={n} onClick={() => setDays(n)} className={days === n ? 'chip-on' : 'chip-off'}>{l}</button>
+        ))}
+      </div>
+      {!s ? <p className="text-stone-500">Đang tải…</p> : (
+        <>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {[
+              ['Người truy cập', s.total.visitors],
+              ['Người đặt thuê', s.total.renters],
+              ['Tỉ lệ chuyển đổi', pct(s.total.renters, s.total.visitors)],
+              ['Số đơn đã thanh toán', s.total.bookings],
+            ].map(([k, v]) => <div key={k} className="card p-4"><p className="text-xs text-stone-500">{k}</p><p className="mt-1 text-2xl font-semibold">{v ?? 0}</p></div>)}
+          </div>
+          <p className="mt-2 text-xs text-stone-500">Hôm nay: {today.visitors ?? 0} người truy cập · {today.renters ?? 0} người đặt thuê. Người truy cập tính theo trình duyệt, 1 lần/ngày.</p>
+          {days > 1 && (
+            <table className="card mt-4 w-full text-sm">
+              <thead><tr className="text-left text-xs text-stone-500"><th className="p-3">Ngày</th><th className="p-3">Truy cập</th><th className="p-3">Đặt thuê</th><th className="p-3">Đơn</th><th className="p-3">Chuyển đổi</th></tr></thead>
+              <tbody>
+                {s.daily.map((d) => (
+                  <tr key={d.day} className="border-t border-stone-100">
+                    <td className="p-3 whitespace-nowrap">{d.day}</td>
+                    <td className="p-3"><div className="flex items-center gap-2"><span className="w-8">{d.visitors}</span><span className="h-2 rounded bg-stone-800" style={{ width: `${(d.visitors / max) * 120}px` }} /></div></td>
+                    <td className="p-3">{d.renters}</td>
+                    <td className="p-3">{d.bookings}</td>
+                    <td className="p-3">{pct(d.renters, d.visitors)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
+      )}
+    </>
   );
 }
 

@@ -28,6 +28,7 @@ Cấu hình (API, `JWT_SECRET`, DB) khai báo ở đầu `e2e/helpers.js` → `C
 | `10-mobile` | Responsive trên điện thoại (project `mobile`) |
 | `11-notifications` | Chủ đồ nhận thông báo có người thuê; thông báo khi đồ / đơn Chủ đồ được duyệt; chuông trên header |
 | `12-database` | Cột bắt buộc của Users / Products / Product_Tags / Bookings, mọi món đã duyệt đủ Tags cho AI |
+| `13-traffic` | Admin "Truy cập & đặt thuê": người truy cập 1 lần/trình duyệt/ngày, chỉ đếm đơn đã thanh toán & không huỷ, phân quyền, số trên màn = API = DB |
 
 Các spec chạy tuần tự theo số (dùng chung 1 DB): `11-notifications` dùng kết quả duyệt đơn Chủ đồ của `07`.
 

@@ -53,6 +53,16 @@ export const adminSetStatus = (id, body) => data(api.patch(`/admin/bookings/${id
 export const adminOwnerApplications = (status) => data(api.get('/admin/owner-applications', { params: { status } }));
 export const adminReviewOwnerApplication = (id, body) => data(api.post(`/admin/owner-applications/${id}/review`, body));
 export const adminStats = () => data(api.get('/admin/stats'));
+/** { total: { visitors, renters, bookings }, daily: [{ day, visitors, renters, bookings }] } — mới nhất trước */
+export const adminTraffic = (days) => data(api.get('/admin/traffic', { params: { days } }));
+
+/** Đếm người truy cập: 1 id ngẫu nhiên/trình duyệt, backend tính 1 lần/ngày. Lỗi thì bỏ qua. */
+export const trackVisit = () => {
+  let vid;
+  try { vid = localStorage.getItem('lt_vid') || crypto.randomUUID(); localStorage.setItem('lt_vid', vid); }
+  catch { vid = crypto.randomUUID(); }
+  fetch(`${api.defaults.baseURL}/track`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vid }), keepalive: true }).catch(() => {});
+};
 /** Admin đã chuyển khoản hoàn tiền thủ công; ref = mã giao dịch ngân hàng (tuỳ chọn). */
 export const adminConfirmRefund = (id, ref) => data(api.post(`/admin/bookings/${id}/refund/confirm`, { ref }));
 
