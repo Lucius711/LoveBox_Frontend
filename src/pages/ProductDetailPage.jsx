@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useChat } from '../components/Chat';
 import { ROUTES } from '../constants';
 import { getBlockedDates, getProduct } from '../services/api';
-import { formatCurrency, formatDate, rentalDays } from '../utils/format';
+import { formatCurrency, formatDate, isSale, rentalDays } from '../utils/format';
 
 export default function ProductDetailPage() {
   const { id } = useParams();
@@ -48,9 +48,11 @@ export default function ProductDetailPage() {
 
   const days = rentalDays(range.start, range.end);
   const isMine = user?.id === p.owner.id;
+  const sale = isSale(p);
   const add = (go) => {
-    if (!range.end) return toast.error('Chọn ngày nhận và ngày trả đồ trên lịch nhé');
-    addItem({ ...p, image: p.images[0] }, range.start, range.end);
+    if (sale) addItem({ ...p, image: p.images[0] });
+    else if (!range.end) return toast.error('Chọn ngày nhận và ngày trả đồ trên lịch nhé');
+    else addItem({ ...p, image: p.images[0] }, range.start, range.end);
     if (go) navigate(ROUTES.CART);
   };
   const tagGroups = [['Màu sắc', p.colors], ['Phong cách', p.styles], ['Dịp phù hợp', p.occasions], ['Kiểu dáng', p.features]]
@@ -60,7 +62,7 @@ export default function ProductDetailPage() {
     <MainLayout>
       <div className="mx-auto max-w-6xl px-4 pb-16 pt-4 md:pt-8">
         <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-1 text-xs text-stone-500">
-          <Link to={ROUTES.PRODUCTS} className="hover:text-ink">Danh mục</Link>
+          <Link to={sale ? `${ROUTES.PRODUCTS}?type=SALE` : ROUTES.PRODUCTS} className="hover:text-ink">{sale ? 'Thanh lý' : 'Danh mục'}</Link>
           <ChevronRight size={12} />
           <Link to={`${ROUTES.PRODUCTS}?category=${encodeURIComponent(p.category)}`} className="hover:text-ink">{p.category}</Link>
         </nav>
@@ -97,19 +99,32 @@ export default function ProductDetailPage() {
               </p>
             )}
 
-            <div className="mt-5 flex items-baseline gap-2">
-              <span className="text-3xl font-semibold tracking-tight">{formatCurrency(p.rentPricePerDay)}</span>
-              <span className="text-stone-500">/ ngày</span>
-            </div>
-            <p className="mt-1 text-sm text-stone-500">
-              Cọc {formatCurrency(p.deposit)} ({p.depositPercent}% giá niêm yết), hoàn lại sau khi trả đồ
-            </p>
+            {sale ? (
+              <>
+                <div className="mt-5 flex items-baseline gap-3">
+                  <span className="text-3xl font-semibold tracking-tight">{formatCurrency(p.salePrice)}</span>
+                  {p.retailPrice > p.salePrice && <span className="text-stone-400 line-through">{formatCurrency(p.retailPrice)}</span>}
+                  <span className="rounded-full bg-ink px-2.5 py-0.5 text-xs font-semibold text-white">Thanh lý</span>
+                </div>
+                <p className="mt-1 text-sm text-stone-500">Mua đứt, không cần trả lại, không đặt cọc</p>
+              </>
+            ) : (
+              <>
+                <div className="mt-5 flex items-baseline gap-2">
+                  <span className="text-3xl font-semibold tracking-tight">{formatCurrency(p.rentPricePerDay)}</span>
+                  <span className="text-stone-500">/ ngày</span>
+                </div>
+                <p className="mt-1 text-sm text-stone-500">
+                  Cọc {formatCurrency(p.deposit)} ({p.depositPercent}% giá niêm yết), hoàn lại sau khi trả đồ
+                </p>
+              </>
+            )}
 
             <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 border-y border-stone-200 py-5 text-sm sm:grid-cols-4">
               <Spec k="Size" v={p.size} />
               <Spec k="Độ mới" v={p.itemCondition} />
               <Spec k="Ngực-Eo-Mông tối đa" v={`${p.bustMax}-${p.waistMax}-${p.hipMax}`} />
-              <Spec k="Giá niêm yết" v={formatCurrency(p.retailPrice)} />
+              <Spec k={sale ? 'Giá gốc' : 'Giá niêm yết'} v={formatCurrency(p.retailPrice)} />
             </dl>
 
             <div className="mt-5 space-y-3">
@@ -123,7 +138,21 @@ export default function ProductDetailPage() {
               ))}
             </div>
 
-            {/* Đặt thuê */}
+            {/* Mua đồ thanh lý: không lịch, không cọc */}
+            {sale ? (
+              <section aria-label="Mua đồ thanh lý" className="mt-8 rounded-2xl border border-stone-200 bg-white p-4 sm:p-5">
+                {isMine ? (
+                  <Link to={ROUTES.EDIT_PRODUCT(p.id)} className="btn-ghost w-full py-3">Đây là đồ của bạn. Sửa thông tin</Link>
+                ) : p.status === 'SOLD' ? (
+                  <p className="py-2 text-center text-sm font-medium text-stone-500">Món này đã có người mua</p>
+                ) : (
+                  <div className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-2 gap-3 border-t border-stone-200 bg-cream/95 p-3 backdrop-blur md:static md:border-0 md:bg-transparent md:p-0">
+                    <button onClick={() => add(false)} className="btn-ghost py-3 shadow-sm">Thêm vào giỏ</button>
+                    <button onClick={() => add(true)} className="btn-wine py-3 shadow-sm">Mua ngay</button>
+                  </div>
+                )}
+              </section>
+            ) : (
             <section aria-label="Chọn ngày thuê" className="mt-8 rounded-2xl border border-stone-200 bg-white p-4 sm:p-5">
               <h2 className="mb-3 text-sm font-semibold">Chọn ngày nhận và trả đồ</h2>
               <RangeCalendar blocked={blocked} start={range.start} end={range.end} onChange={(start, end) => setRange({ start, end })} />
@@ -144,9 +173,10 @@ export default function ProductDetailPage() {
                 </div>
               )}
             </section>
+            )}
 
             <ul className="mt-4 grid gap-2 text-xs text-stone-600 sm:grid-cols-2">
-              <li className="flex items-center gap-2"><ShieldCheck size={15} className="text-wine-600" /> Admin duyệt, giặt hấp trước mỗi lượt thuê</li>
+              <li className="flex items-center gap-2"><ShieldCheck size={15} className="text-wine-600" /> {sale ? 'Admin duyệt trước khi lên kệ' : 'Admin duyệt, giặt hấp trước mỗi lượt thuê'}</li>
               <li className="flex items-center gap-2"><Truck size={15} className="text-wine-600" /> Tự đến lấy hoặc ship hoả tốc</li>
             </ul>
 

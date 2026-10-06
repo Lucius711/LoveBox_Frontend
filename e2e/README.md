@@ -12,11 +12,14 @@ npm run test:e2e -- --project=mobile   # chỉ test điện thoại (Pixel 7)
 
 Cấu hình (API, `JWT_SECRET`, DB) khai báo ở đầu `e2e/helpers.js` → `CONFIG`. Muốn đổi tạm mà không sửa code: đặt biến `E2E_<TÊN>` (vd `E2E_DB_PASSWORD`, `E2E_API_URL`). URL frontend: `E2E_BASE_URL` (mặc định `http://localhost:5173`, đặt thì không tự bật vite).
 
+Trang chủ có mở màn + tự cuộn kể chuyện → `playwright.config.js` đặt `reducedMotion: 'reduce'` cho mọi spec (không chờ mở màn, không bị cuộn mất);
+riêng phần "Mở màn trang chủ" trong `01-homepage` bật lại hiệu ứng. Các cảnh trên trang chủ bị ẩn tới khi cuộn tới → dùng `scrollUntilVisible` trong `helpers.js`.
+
 ## Bộ test theo tài liệu yêu cầu
 
 | File | Yêu cầu |
 |---|---|
-| `01-homepage` | Trang chủ: header (logo, menu, tìm kiếm, đăng nhập, giỏ; đăng nhập rồi thì chuông + nhãn vai trò), banner "Tìm đồ cùng AI ngay", Đồ mới lên kệ, Được thuê nhiều nhất, footer |
+| `01-homepage` | Trang chủ kể chuyện: header (logo, menu, tìm kiếm, đăng nhập, giỏ; đăng nhập rồi thì chuông + nhãn vai trò), hero "Tìm đồ cùng AI" / "Xem kho đồ", vòng thẻ giới thiệu loại đồ, chồng thẻ Đồ mới lên kệ / Được thuê nhiều nhất (hạng 01–03), Cách thuê 3 bước, Tủ đồ chung, accordion vai trò, footer; mở màn che nav + chat + banner hồ sơ rồi hiện lại, bấm phím bỏ qua, tự cuộn, tải lại về đầu trang |
 | `02-catalog` | Danh mục: loại đồ (Áo dài, Đầm dạ hội, Veston, Cosplay…), phong cách, lọc giá / size / màu / tình trạng, sắp xếp, phân trang, tìm kiếm, lazy load ảnh, trang chi tiết |
 | `03-ai-stylist` | Trợ lý AI: số đo → size, 3 vòng, ngân sách, bóc từ khoá, match ≥ 80%, 3-5 kết quả, đề xuất màu thay thế, Xem chi tiết / Thêm vào giỏ, lịch sử chat |
 | `04-booking-calendar` | Khoá lịch + 1 ngày đệm giặt ủi, lịch làm mờ ngày đã thuê, ngày không hợp lệ |
@@ -29,6 +32,7 @@ Cấu hình (API, `JWT_SECRET`, DB) khai báo ở đầu `e2e/helpers.js` → `C
 | `11-notifications` | Chủ đồ nhận thông báo có người thuê; thông báo khi đồ / đơn Chủ đồ được duyệt; chuông trên header |
 | `12-database` | Cột bắt buộc của Users / Products / Product_Tags / Bookings, mọi món đã duyệt đủ Tags cho AI |
 | `13-traffic` | Admin "Truy cập & đặt thuê": người truy cập 1 lần/trình duyệt/ngày, chỉ đếm đơn đã thanh toán & không huỷ, phân quyền, số trên màn = API = DB |
+| `14-sale` | Thanh lý đồ cũ: đồ RENT/SALE tách riêng (DB + API tìm kiếm), chủ đồ đăng đồ thanh lý (giá bán bắt buộc, loại cố định) → admin duyệt; tab Thanh lý ở Danh mục; mua không chọn ngày, không cọc, COD; món thành Đã bán, người khác không mua được; chủ đồ xác nhận → gửi → khách đã nhận; giỏ trộn thuê + mua; huỷ → lên kệ lại |
 
 Các spec chạy tuần tự theo số (dùng chung 1 DB): `11-notifications` dùng kết quả duyệt đơn Chủ đồ của `07`.
 

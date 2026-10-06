@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { USERS, api, chatWidget, data, login, openChat, setProfile, sql } from './helpers.js';
+import { USERS, api, chatWidget, data, login, openChat, scrollUntilVisible, setProfile, sql } from './helpers.js';
 
 // Requirement brief — 3. "CÁCH THỨC THUÊ" - TRỢ LÝ AI ; System — 2.1 Module Tìm kiếm AI
 // Chạy được cả khi có GEMINI_API_KEY lẫn khi không (backend rơi về so khớp từ khoá) → chỉ assert điều đúng ở cả 2 trường hợp.
@@ -147,7 +147,8 @@ test.describe('Bước 3 — kết quả & xử lý ngoại lệ', () => {
     checkInvariants({ results: list }, { size: 'M', maxPrice: 200000 });
     await login(page, U);
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Gợi ý cho bạn' })).toBeVisible();
+    await expect(page.locator('section', { has: page.locator('h2', { hasText: 'Gợi ý cho bạn' }) })).toBeAttached();   // chờ dữ liệu về rồi mới cuộn
+    await scrollUntilVisible(page, page.getByRole('heading', { name: 'Gợi ý cho bạn' }));   // chồng thẻ sau "Đồ mới lên kệ"
   });
 
   test('khung chat: gợi ý mẫu, chip hồ sơ, kết quả, tinh chỉnh, chat mới', async ({ page }) => {

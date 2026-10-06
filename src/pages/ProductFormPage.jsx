@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ImagePlus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import MainLayout from '../layouts/MainLayout';
@@ -10,16 +10,18 @@ import { compressImage, formatCurrency } from '../utils/format';
 
 const EMPTY = {
   name: '', description: '', category: '', size: '', bustMax: '', waistMax: '', hipMax: '', itemCondition: '',
-  retailPrice: '', rentPricePerDay: '', depositPercent: 100, colors: [], styles: [], occasions: [], features: [], images: [],
+  listingType: 'RENT', salePrice: '', retailPrice: '', rentPricePerDay: '', depositPercent: 100, colors: [], styles: [], occasions: [], features: [], images: [],
 };
 const PHOTO_HINTS = ['Mặt trước', 'Mặt sau', 'Cận chất vải'];
 
-/** Form đăng đồ — ép nhập đủ nhãn để AI gợi ý chính xác; gửi xong chờ admin duyệt. */
+/** Form đăng đồ cho thuê / thanh lý — ép nhập đủ nhãn để AI gợi ý chính xác; gửi xong chờ admin duyệt. */
 export default function ProductFormPage() {
   const { id } = useParams();
+  const [params] = useSearchParams();
   const navigate = useNavigate();
   const [meta, setMeta] = useState(null);
-  const [form, setForm] = useState(EMPTY);
+  const [form, setForm] = useState(() => ({ ...EMPTY, listingType: params.get('type') === 'SALE' ? 'SALE' : 'RENT' }));
+  const sale = form.listingType === 'SALE';
   const [uploading, setUploading] = useState(0);
   const [saving, setSaving] = useState(false);
 
@@ -52,12 +54,13 @@ export default function ProductFormPage() {
     setSaving(true);
     const body = {
       ...form, bustMax: +form.bustMax, waistMax: +form.waistMax, hipMax: +form.hipMax,
-      retailPrice: +form.retailPrice, rentPricePerDay: +form.rentPricePerDay, depositPercent: +form.depositPercent,
+      retailPrice: +form.retailPrice, rentPricePerDay: sale ? 0 : +form.rentPricePerDay, depositPercent: +form.depositPercent,
+      salePrice: sale ? +form.salePrice : 0,
     };
     try {
       await (id ? updateProduct(id, body) : createProduct(body));
       toast.success('Đã gửi! Admin sẽ duyệt trước khi đồ hiển thị.');
-      navigate(`${ROUTES.ACCOUNT}?tab=owner`);
+      navigate(`${ROUTES.ACCOUNT}?tab=owner${sale ? '&kind=SALE' : ''}`);
     } catch (err) { toast.error(errorMessage(err)); } finally { setSaving(false); }
   };
 
@@ -68,9 +71,22 @@ export default function ProductFormPage() {
     <MainLayout>
       <form onSubmit={submit} className="mx-auto max-w-3xl space-y-6 px-4 py-8">
         <div>
-          <h1 className="font-serif text-3xl">{id ? 'Sửa món đồ' : 'Đăng đồ cho thuê'}</h1>
-          <p className="mt-1 text-sm text-stone-500">Điền đủ các nhãn để trợ lý AI gợi ý đồ của bạn cho đúng khách. Admin duyệt trước khi hiển thị.</p>
+          <h1 className="font-serif text-3xl">{id ? 'Sửa món đồ' : sale ? 'Đăng đồ thanh lý' : 'Đăng đồ cho thuê'}</h1>
+          <p className="mt-1 text-sm text-stone-500">Điền đủ các nhãn để khách tìm thấy đồ của bạn. Admin duyệt trước khi hiển thị.</p>
         </div>
+
+        {/* Loại cố định sau khi đăng: đồ thuê có lịch + cọc, đồ thanh lý chỉ có giá bán */}
+        {!id && (
+          <div className="grid grid-cols-2 gap-2 rounded-2xl bg-stone-100 p-1.5">
+            {[['RENT', 'Cho thuê', 'Khách thuê theo ngày, đặt cọc, trả lại đồ'], ['SALE', 'Thanh lý', 'Bán đứt đồ cũ, không cọc, không trả lại']].map(([k, l, d]) => (
+              <button type="button" key={k} onClick={() => set('listingType', k)} aria-pressed={form.listingType === k}
+                className={`rounded-xl px-4 py-3 text-left transition ${form.listingType === k ? 'bg-white shadow-sm' : 'text-stone-500 hover:text-ink'}`}>
+                <span className="block text-sm font-semibold">{l}</span>
+                <span className="block text-xs text-stone-500">{d}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         <Section title="Ảnh (ít nhất 3)">
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
@@ -117,6 +133,17 @@ export default function ProductFormPage() {
           <Chips label="Kiểu dáng / tính năng" all={meta.features} value={form.features} onToggle={(v) => toggle('features', v)} />
         </Section>
 
+        {sale ? (
+        <Section title="Giá">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Giá gốc (lúc mua mới)"><input required type="number" min={10000} step={1000} inputMode="numeric" className="input" {...f('retailPrice')} /></Field>
+            <Field label="Giá bán thanh lý"><input required type="number" min={10000} step={1000} inputMode="numeric" className="input" {...f('salePrice')} /></Field>
+          </div>
+          {+form.retailPrice > 0 && +form.salePrice > 0 && (
+            <p className="text-xs text-stone-500">Rẻ hơn giá gốc {Math.max(0, Math.round(100 - (form.salePrice / form.retailPrice) * 100))}%</p>
+          )}
+        </Section>
+        ) : (
         <Section title="Giá">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Giá niêm yết (giá mua gốc)"><input required type="number" min={10000} step={1000} inputMode="numeric" className="input" {...f('retailPrice')} /></Field>
@@ -126,6 +153,7 @@ export default function ProductFormPage() {
             <input type="range" min={50} max={100} step={5} className="w-full accent-wine-600" {...f('depositPercent')} />
           </Field>
         </Section>
+        )}
 
         <button disabled={saving || uploading > 0} className="btn-wine w-full py-3">{saving ? 'Đang gửi…' : 'Gửi duyệt'}</button>
       </form>

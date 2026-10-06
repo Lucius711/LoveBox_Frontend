@@ -14,10 +14,16 @@ export const formatDate = (s) => (s ? fromISO(String(s).slice(0, 10)).toLocaleDa
 export const rentalDays = (start, end) =>
   start && end ? Math.round((fromISO(end) - fromISO(start)) / 86400000) + 1 : 0;
 
-/** Tiền thuê = Σ giá/ngày × số ngày; cọc = Σ cọc từng món (phí ship cộng ở checkout). */
+/** Món thanh lý (bán đứt) — sản phẩm có listingType, đơn có kind. */
+export const isSale = (x) => x?.listingType === 'SALE' || x?.kind === 'SALE';
+
+/** Tiền 1 món trong giỏ: đồ thanh lý = giá bán; đồ thuê = giá/ngày × số ngày. */
+export const itemAmount = (i) => (i.sale ? i.salePrice : i.rentPricePerDay * rentalDays(i.startDate, i.endDate));
+
+/** Tiền đồ = Σ itemAmount; cọc = Σ cọc đồ thuê (phí ship cộng ở checkout). */
 export const cartTotals = (items) => ({
-  rent: items.reduce((s, i) => s + i.rentPricePerDay * rentalDays(i.startDate, i.endDate), 0),
-  deposit: items.reduce((s, i) => s + i.deposit, 0),
+  rent: items.reduce((s, i) => s + itemAmount(i), 0),
+  deposit: items.reduce((s, i) => s + (i.sale ? 0 : i.deposit), 0),
 });
 
 /** Nén ảnh trước khi upload: thu về ≤1200px, WebP 80% (ảnh 5MB → ~150KB). */

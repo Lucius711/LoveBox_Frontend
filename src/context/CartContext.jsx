@@ -19,6 +19,7 @@ export function CartProvider({ children }) {
       return [...rest, {
         productId: product.id, name: product.name, image: product.image ?? product.images?.[0],
         rentPricePerDay: product.rentPricePerDay, deposit: product.deposit, size: product.size, startDate, endDate,
+        ...(product.listingType === 'SALE' && { sale: true, salePrice: product.salePrice, deposit: 0 }),   // đồ thanh lý: không ngày, không cọc
       }];
     });
     toast.success('Đã thêm vào giỏ');

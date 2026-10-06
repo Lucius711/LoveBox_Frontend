@@ -26,6 +26,7 @@ export default function CheckoutPage() {
 
   const f = (k) => ({ value: form[k], onChange: (e) => setForm((s) => ({ ...s, [k]: e.target.value })) });
   const { rent, deposit } = cartTotals(items);
+  const verb = items.every((i) => i.sale) ? 'Đặt mua' : 'Đặt thuê';
   const ship = form.deliveryMethod === 'EXPRESS' ? EXPRESS_FEE : 0;
 
   const submit = async (e) => {
@@ -50,7 +51,7 @@ export default function CheckoutPage() {
     <MainLayout>
       <form onSubmit={submit} className="mx-auto grid max-w-5xl gap-6 px-4 py-8 md:grid-cols-[1fr_340px]">
         <div className="space-y-6">
-          <h1 className="font-serif text-3xl">Đặt thuê & đặt cọc</h1>
+          <h1 className="font-serif text-3xl">{deposit > 0 ? 'Đặt thuê & đặt cọc' : verb}</h1>
 
           <fieldset className="card space-y-4 p-5">
             <legend className="px-1 text-sm font-semibold">Thông tin giao nhận</legend>
@@ -90,16 +91,16 @@ export default function CheckoutPage() {
                 <img src={i.image} alt="" loading="lazy" className="h-14 w-11 rounded-lg object-cover" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{i.name}</p>
-                  <p className="text-xs text-stone-500">{formatDate(i.startDate)} → {formatDate(i.endDate)} · {rentalDays(i.startDate, i.endDate)} ngày</p>
+                  <p className="text-xs text-stone-500">{i.sale ? `Mua thanh lý · ${formatCurrency(i.salePrice)}` : `${formatDate(i.startDate)} → ${formatDate(i.endDate)} · ${rentalDays(i.startDate, i.endDate)} ngày`}</p>
                 </div>
               </li>
             ))}
           </ul>
-          <Row k="Tiền thuê đồ × số ngày" v={formatCurrency(rent)} />
-          <Row k="Tiền cọc bảo đảm" v={formatCurrency(deposit)} />
+          <Row k="Tiền đồ (thuê / mua)" v={formatCurrency(rent)} />
+          {deposit > 0 && <Row k="Tiền cọc bảo đảm" v={formatCurrency(deposit)} />}
           <Row k="Phí vận chuyển" v={formatCurrency(ship)} />
           <div className="border-t border-stone-100 pt-3 text-base"><Row k={<b>Thành tiền</b>} v={<b>{formatCurrency(rent + deposit + ship)}</b>} /></div>
-          <button disabled={submitting} className="btn-wine w-full py-3">{submitting ? 'Đang xử lý…' : form.paymentMethod === 'COD' ? 'Đặt thuê' : 'Đặt thuê & lấy mã QR'}</button>
+          <button disabled={submitting} className="btn-wine w-full py-3">{submitting ? 'Đang xử lý…' : form.paymentMethod === 'COD' ? verb : `${verb} & lấy mã QR`}</button>
         </aside>
       </form>
     </MainLayout>

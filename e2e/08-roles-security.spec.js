@@ -81,7 +81,7 @@ test.describe('Giao diện theo vai trò', () => {
     await expect(page.getByRole('link', { name: 'Đơn thuê & cho thuê' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Đăng ký làm Chủ đồ' })).toHaveCount(0);
     await page.goto('/account?tab=owner');
-    await expect(page.getByText('Doanh thu thuê')).toBeVisible();
+    await expect(page.getByText('Doanh thu', { exact: true })).toBeVisible();
     await expect(page.getByRole('main').getByRole('link', { name: 'Đăng đồ cho thuê' })).toBeVisible();
     await page.goto('/admin');
     await expect(page).toHaveURL(/tab=owner/);
@@ -105,8 +105,8 @@ test.describe('Giao diện theo vai trò', () => {
       await page.goto(path);
       await expect(page, path).toHaveURL(path === '/owner/products/new' ? /\/admin/ : /\/account/);
     }
-    await expect(page.getByRole('button', { name: 'Cho thuê', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Đơn thuê', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Cho thuê & thanh lý', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Đơn hàng', exact: true })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Thông tin liên hệ' })).toBeVisible();
   });
 });

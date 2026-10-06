@@ -32,6 +32,9 @@ export const USERS = {
 };
 /** Đồ APPROVED của e2e owner (seed trong global-setup) để test luồng thuê. */
 export const E2E_PRODUCT = { id: '00000000-0000-0000-0000-0000000e2ea1', name: 'E2E Đầm thử nghiệm đỏ đô' };
+/** Đồ THANH LÝ (bán đứt) APPROVED của e2e owner: SALE mua → giao → hoàn tất; SALE2 dùng cho huỷ / giỏ trộn. */
+export const E2E_SALE = { id: '00000000-0000-0000-0000-0000000e2eb1', name: 'E2E Đầm thanh lý xanh navy', price: 350000 };
+export const E2E_SALE2 = { id: '00000000-0000-0000-0000-0000000e2eb2', name: 'E2E Áo dài thanh lý trắng', price: 420000 };
 /** Đồ demo có sẵn (V10 thay bộ đồ demo; chủ là Lentique Studio). */
 export const SEED_PRODUCT = { id: '00000000-0000-0000-0000-000000000014', name: 'Set sơ mi lụa kem & chân váy đen đuôi cá' };
 
@@ -142,6 +145,18 @@ export async function ownerApplyBody(patch = {}) {
   const { banks } = await data(await (await api()).get('products/meta'));
   return { phone: '0944444444', address: '1 Đường Test, Q1', bankAccount: '12345678', bankName: banks[0],
     intro: 'Cho thuê vài bộ đầm dự tiệc size S-M, mặc 1 lần (E2E).', agreed: true, ...patch };
+}
+
+/**
+ * Trang chủ kể chuyện theo cuộn: mỗi cảnh là section cao có phần sticky, bị ẩn (visibility: hidden) tới khi cuộn tới.
+ * Cuộn dần xuống tới khi `locator` hiện ra (hoặc hết trang).
+ */
+export async function scrollUntilVisible(page, locator, maxSteps = 120) {
+  for (let i = 0; i < maxSteps && !(await locator.isVisible()); i++) {
+    await page.evaluate(() => scrollBy({ top: innerHeight * 0.35, behavior: 'instant' }));
+    await page.waitForTimeout(40);
+  }
+  await expect(locator).toBeVisible();
 }
 
 /** Header: nút tài khoản (kèm nhãn vai trò) và chuông thông báo. */

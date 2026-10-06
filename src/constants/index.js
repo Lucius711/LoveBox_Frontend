@@ -10,6 +10,7 @@ export const ROUTES = {
   PROFILE: '/account?tab=profile',
   ONBOARDING: '/onboarding',
   NEW_PRODUCT: '/owner/products/new',
+  NEW_SALE: '/owner/products/new?type=SALE',
   EDIT_PRODUCT: (id) => `/owner/products/${id}/edit`,
   ADMIN: '/admin',
 };
@@ -28,12 +29,20 @@ export const BOOKING_STATUS = {
   CANCELLED: { label: 'Đã huỷ', tone: 'bg-stone-200 text-stone-600' },
 };
 export const TIMELINE = ['PENDING', 'SHIPPING', 'RENTED', 'RETURNED', 'COMPLETED'];
+// Đơn mua đồ thanh lý: không có thuê / trả / cọc
+export const SALE_TIMELINE = [['PENDING', 'Chờ xác nhận'], ['SHIPPING', 'Đang giao'], ['COMPLETED', 'Đã nhận hàng']];
+export const SALE_ACTIONS = {
+  PENDING: [['CONFIRMED', 'Xác nhận đơn'], ['CANCELLED', 'Từ chối']],
+  CONFIRMED: [['SHIPPING', 'Đã gửi đi'], ['COMPLETED', 'Khách đã nhận']],
+  SHIPPING: [['COMPLETED', 'Khách đã nhận']],
+};
 
 export const PRODUCT_STATUS = {
   PENDING: { label: 'Chờ duyệt', tone: 'bg-amber-100 text-amber-800' },
   APPROVED: { label: 'Đang hiển thị', tone: 'bg-emerald-100 text-emerald-800' },
   REJECTED: { label: 'Bị từ chối', tone: 'bg-rose-100 text-rose-800' },
   HIDDEN: { label: 'Đã ẩn', tone: 'bg-stone-200 text-stone-600' },
+  SOLD: { label: 'Đã bán', tone: 'bg-wine-100 text-wine-800' },
 };
 
 export const DEPOSIT_STATUS = { PENDING: 'Chưa thu', HELD: 'Đang giữ cọc', REFUNDED: 'Đã hoàn cọc', FORFEITED: 'Mất cọc' };

@@ -48,7 +48,7 @@ test('chủ đồ: thấy đơn mới, xác nhận → đã gửi → khách đ�
 
   const stats = await data(await (await api(USERS.owner)).get('owner/stats'));
   expect(stats.revenue).toBeGreaterThanOrEqual(main.rentAmount);
-  await expect(page.getByText('Doanh thu thuê')).toBeVisible();
+  await expect(page.getByText('Doanh thu', { exact: true })).toBeVisible();
 });
 
 test('chủ đồ không được đẩy đơn sang hoàn cọc (chỉ admin)', async () => {

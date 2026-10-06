@@ -15,21 +15,25 @@ for (const [who, paths] of Object.entries(PAGES)) {
     if (USERS[who]) await login(page, USERS[who]);
     for (const path of paths) {
       await page.goto(path);
-      await page.waitForLoadState('networkidle');
+      // ponytail: networkidle có thể không bao giờ tới (HMR / ảnh ngoài) → chờ tối đa 5s rồi đo
+      await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth),
         { message: `${path} bị tràn ngang` }).toBeLessThanOrEqual(0);
     }
   });
 }
 
-test('menu hamburger mở và điều hướng được', async ({ page }) => {
+test('menu hamburger toàn màn hình mở và điều hướng được', async ({ page }) => {
   await page.goto('/');
-  const nav = page.locator('header nav').filter({ visible: true });
-  await expect(nav).toHaveCount(0); // menu desktop bị ẩn
+  await expect(page.locator('header nav').filter({ visible: true })).toHaveCount(0); // menu desktop bị ẩn
+  const menu = page.locator('#mobile-menu');
+  await expect(menu).toHaveAttribute('aria-hidden', 'true');
   await page.getByRole('button', { name: 'Menu' }).click();
-  await nav.getByRole('link', { name: 'Danh mục' }).click();
+  await expect(menu).toHaveAttribute('aria-hidden', 'false');
+  await expect(menu).toBeInViewport({ ratio: 1 });
+  await menu.getByRole('link', { name: 'Danh mục' }).first().click();
   await expect(page).toHaveURL(/\/products/);
-  await expect(nav).toHaveCount(0); // tự đóng sau khi chọn
+  await expect(menu).toHaveAttribute('aria-hidden', 'true'); // tự đóng sau khi chọn
 });
 
 test('nút Bộ lọc nổi theo khi cuộn, lọc trong drawer', async ({ page }) => {
@@ -40,7 +44,7 @@ test('nút Bộ lọc nổi theo khi cuộn, lọc trong drawer', async ({ page 
   await expect(open).toBeInViewport();
 
   await open.click();
-  const drawer = page.locator('div.fixed.inset-0');
+  const drawer = page.locator('div.fixed.inset-0').filter({ has: page.getByRole('heading', { name: 'Bộ lọc' }) });
   await drawer.getByRole('button', { name: 'XL', exact: true }).click();
   await expect(page).toHaveURL(/size=XL/);
   await drawer.getByRole('button', { name: /^Xem/ }).click();
@@ -89,7 +93,7 @@ test('đặt thuê COD trọn luồng trên điện thoại', async ({ page }) =
   await cal.getByRole('button', { name: '20', exact: true }).click();
   await cal.getByRole('button', { name: '21', exact: true }).click();
   await page.getByRole('button', { name: 'Thuê ngay' }).click();
-  await page.getByRole('button', { name: 'Tiến hành đặt thuê' }).click();
+  await page.getByRole('button', { name: 'Tiến hành đặt hàng' }).click();
   await expect(page).toHaveURL(/\/checkout$/);
   await page.getByText('Tự đến lấy', { exact: true }).click();
   await page.getByText('Thanh toán khi nhận (COD)').click();

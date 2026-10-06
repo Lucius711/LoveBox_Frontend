@@ -102,10 +102,10 @@ test('tìm kiếm theo tên / loại đồ', async ({ page }) => {
   await expect(count(page)).toHaveText(`${res.totalItems} món`);
 });
 
-test('thanh lọc dính theo khi cuộn xuống cuối trang', async ({ page }) => {
+test('thanh lọc dính theo khi cuộn xuống cuối danh sách', async ({ page }) => {
   await page.goto('/products');
   await expect(count(page)).toBeVisible();
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await page.locator('main div.group').last().scrollIntoViewIfNeeded();   // footer cao → đo ở cuối lưới sản phẩm, không phải cuối trang
   await expect(page.locator('aside').getByText('Kích cỡ')).toBeInViewport();
 });
 

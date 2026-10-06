@@ -11,8 +11,15 @@ const PRICES = [
   ['200k – 300k', '200000', '300000'],
   ['Trên 300k', '300000', ''],
 ];
+const SALE_PRICES = [
+  ['Dưới 200k', '', '200000'],
+  ['200k – 500k', '200000', '500000'],
+  ['500k – 1 triệu', '500000', '1000000'],
+  ['Trên 1 triệu', '1000000', ''],
+];
 const SORTS = [['new', 'Mới nhất'], ['popular', 'Thuê nhiều nhất'], ['priceAsc', 'Giá tăng dần'], ['priceDesc', 'Giá giảm dần']];
-const KEYS = ['q', 'category', 'style', 'color', 'size', 'minPrice', 'maxPrice', 'availability', 'sort', 'page'];
+const KINDS = [['', 'Cho thuê'], ['SALE', 'Thanh lý']];
+const KEYS = ['type', 'q', 'category', 'style', 'color', 'size', 'minPrice', 'maxPrice', 'availability', 'sort', 'page'];
 const PAGE_SIZE = 12;
 
 export default function ProductsPage() {
@@ -39,8 +46,9 @@ export default function ProductsPage() {
     setParams(next, { replace: true });
   };
   const toggle = (k, v) => set({ [k]: params.get(k) === v ? '' : v });
-  const NOT_FILTER = ['sort', 'q', 'page'];
+  const NOT_FILTER = ['type', 'sort', 'q', 'page'];
   const activeCount = KEYS.filter((k) => !NOT_FILTER.includes(k) && params.get(k)).length;
+  const sale = params.get('type') === 'SALE';
   const goPage = (n) => { set({ page: n > 1 ? String(n) : '' }); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
   const filters = meta && (
@@ -51,8 +59,8 @@ export default function ProductsPage() {
       <Group title="Phong cách">
         {meta.styles.map((s) => <Chip key={s} on={params.get('style') === s} onClick={() => toggle('style', s)}>{s}</Chip>)}
       </Group>
-      <Group title="Khoảng giá thuê / ngày">
-        {PRICES.map(([label, min, max]) => {
+      <Group title={sale ? 'Khoảng giá bán' : 'Khoảng giá thuê / ngày'}>
+        {(sale ? SALE_PRICES : PRICES).map(([label, min, max]) => {
           const on = (params.get('minPrice') || '') === min && (params.get('maxPrice') || '') === max;
           return <Chip key={label} on={on} onClick={() => set(on ? { minPrice: '', maxPrice: '' } : { minPrice: min, maxPrice: max })}>{label}</Chip>;
         })}
@@ -63,10 +71,10 @@ export default function ProductsPage() {
       <Group title="Màu sắc">
         {meta.colors.map((c) => <Chip key={c} on={params.get('color') === c} onClick={() => toggle('color', c)}>{c}</Chip>)}
       </Group>
-      <Group title="Tình trạng">
+      {!sale && <Group title="Tình trạng">
         <Chip on={params.get('availability') === 'available'} onClick={() => toggle('availability', 'available')}>Có sẵn</Chip>
         <Chip on={params.get('availability') === 'rented'} onClick={() => toggle('availability', 'rented')}>Đang cho thuê</Chip>
-      </Group>
+      </Group>}
       {activeCount > 0 && (
         <button onClick={() => set(Object.fromEntries(KEYS.filter((k) => !NOT_FILTER.includes(k)).map((k) => [k, ''])))}
           className="text-sm font-medium text-wine-600 underline">Xoá bộ lọc</button>
@@ -77,9 +85,16 @@ export default function ProductsPage() {
   return (
     <MainLayout>
       <div className="mx-auto max-w-6xl px-4 py-8">
+        {/* Cho thuê | Thanh lý — đổi loại thì bỏ lọc giá / tình trạng (thang giá khác nhau) */}
+        <div className="mb-5 inline-flex rounded-full bg-stone-100 p-1">
+          {KINDS.map(([k, l]) => (
+            <button key={l} onClick={() => set({ type: k, minPrice: '', maxPrice: '', availability: '', sort: '' })} aria-pressed={(params.get('type') || '') === k}
+              className={`rounded-full px-5 py-2 text-sm font-medium transition ${(params.get('type') || '') === k ? 'bg-ink text-white shadow' : 'text-stone-600 hover:text-ink'}`}>{l}</button>
+          ))}
+        </div>
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="font-serif text-3xl">{params.get('category') || 'Kho đồ cho thuê'}</h1>
+            <h1 className="font-serif text-3xl">{params.get('category') || (sale ? 'Đồ thanh lý' : 'Kho đồ cho thuê')}</h1>
             {params.get('q') && (
               <p className="mt-1 text-sm text-stone-500">
                 Kết quả cho “{params.get('q')}” · <button onClick={() => set({ q: '' })} className="underline">bỏ tìm kiếm</button>
@@ -93,7 +108,7 @@ export default function ProductsPage() {
             </button>
             <select value={params.get('sort') || 'new'} onChange={(e) => set({ sort: e.target.value })}
               aria-label="Sắp xếp" className="input w-auto py-2">
-              {SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              {SORTS.filter(([v]) => !(sale && v === 'popular')).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </div>
         </div>

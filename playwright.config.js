@@ -19,6 +19,9 @@ export default defineConfig({
     timezoneId: 'Asia/Ho_Chi_Minh',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
+    // Trang chủ có mở màn + tự cuộn kể chuyện; tắt hiệu ứng để các spec khác không phải chờ / bị cuộn mất.
+    // Spec trang chủ bật lại (reducedMotion: 'no-preference') để test riêng phần mở màn.
+    reducedMotion: 'reduce',
   },
   projects: [
     { name: 'desktop', testIgnore: /mobile/, use: { ...devices['Desktop Chrome'], viewport: { width: 1366, height: 800 } } },

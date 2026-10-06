@@ -6,7 +6,7 @@ import { Tabs } from '../components/ui';
 import BookingRow from '../components/BookingRow';
 import { BOOKING_STATUS, ROUTES } from '../constants';
 import { adminBookings, adminOwnerApplications, adminReviewOwnerApplication, adminProducts, adminConfirmRefund, adminReviewProduct, adminSetStatus, adminStats, adminTraffic, errorMessage } from '../services/api';
-import { formatCurrency } from '../utils/format';
+import { formatCurrency, isSale } from '../utils/format';
 
 const TABS = [['traffic', 'Truy cập & đặt thuê'], ['products', 'Duyệt đồ'], ['owners', 'Đơn Chủ đồ'], ['bookings', 'Đơn & tranh chấp'], ['money', 'Dòng tiền']];
 
@@ -57,7 +57,8 @@ function Traffic() {
           </div>
           <p className="mt-2 text-xs text-stone-500">Hôm nay: {today.visitors ?? 0} người truy cập · {today.renters ?? 0} người đặt thuê. Người truy cập tính theo trình duyệt, 1 lần/ngày.</p>
           {days > 1 && (
-            <table className="card mt-4 w-full text-sm">
+            <div className="mt-4 overflow-x-auto">{/* điện thoại: bảng 5 cột cuộn ngang trong khung, không làm tràn trang */}
+            <table className="card w-full min-w-[34rem] text-sm">
               <thead><tr className="text-left text-xs text-stone-500"><th className="p-3">Ngày</th><th className="p-3">Truy cập</th><th className="p-3">Đặt thuê</th><th className="p-3">Đơn</th><th className="p-3">Chuyển đổi</th></tr></thead>
               <tbody>
                 {s.daily.map((d) => (
@@ -71,6 +72,7 @@ function Traffic() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </>
       )}
@@ -103,7 +105,9 @@ function Moderation() {
           <div className="mt-3 text-sm">
             <Link to={ROUTES.PRODUCT(p.id)} className="font-semibold">{p.name}</Link>
             <p className="text-stone-500">{p.category} · Size {p.size} · {p.bustMax}-{p.waistMax}-{p.hipMax} · {p.itemCondition} · Chủ: {p.owner.name} (uy tín {p.owner.trustScore})</p>
-            <p className="mt-1">Niêm yết {formatCurrency(p.retailPrice)} · Thuê {formatCurrency(p.rentPricePerDay)}/ngày · Cọc {p.depositPercent}% = {formatCurrency(p.deposit)}</p>
+            <p className="mt-1">{isSale(p)
+              ? <><b>Thanh lý</b> · Giá gốc {formatCurrency(p.retailPrice)} · Giá bán {formatCurrency(p.salePrice)}</>
+              : <>Niêm yết {formatCurrency(p.retailPrice)} · Thuê {formatCurrency(p.rentPricePerDay)}/ngày · Cọc {p.depositPercent}% = {formatCurrency(p.deposit)}</>}</p>
             <p className="mt-1 text-stone-600">{p.description}</p>
             <p className="mt-1 text-xs text-stone-500">{[...p.colors, ...p.styles, ...p.occasions, ...p.features].join(' · ')}</p>
           </div>
@@ -159,6 +163,13 @@ const ACTIONS = {
   DISPUTED: [['COMPLETED', 'Chốt & hoàn phần cọc còn lại']],
 };
 
+// Đơn mua đồ thanh lý: giao xong là hoàn tất, không kiểm định / hoàn cọc
+const SALE_ACTIONS = {
+  PENDING: [['CONFIRMED', 'Xác nhận'], ['CANCELLED', 'Huỷ']],
+  CONFIRMED: [['SHIPPING', 'Đang giao'], ['COMPLETED', 'Khách đã nhận'], ['CANCELLED', 'Huỷ']],
+  SHIPPING: [['COMPLETED', 'Khách đã nhận'], ['CANCELLED', 'Huỷ']],
+};
+
 function Bookings() {
   const [status, setStatus] = useState('');
   const [list, setList] = useState(null);
@@ -175,7 +186,7 @@ function Bookings() {
     }
     if (to === 'CANCELLED' && !confirm(b.paymentStatus === 'PAID' && b.paymentMethod === 'PAYOS'
       ? `Huỷ đơn? Khách đã trả ${formatCurrency(b.totalAmount)} qua QR — đơn sẽ chờ bạn chuyển khoản hoàn lại thủ công.` : 'Huỷ đơn này?')) return;
-    if (to === 'COMPLETED' && !confirm(`Hoàn ${formatCurrency(b.depositAmount - b.deductionAmount)} tiền cọc về ${b.refundBankAccount ? `${b.refundBankName || ''} ${b.refundBankAccount}` : 'STK trong hồ sơ khách'}. Bạn sẽ tự chuyển khoản rồi bấm "Đã chuyển khoản". Tiếp tục?`)) return;
+    if (to === 'COMPLETED' && !isSale(b) && !confirm(`Hoàn ${formatCurrency(b.depositAmount - b.deductionAmount)} tiền cọc về ${b.refundBankAccount ? `${b.refundBankName || ''} ${b.refundBankAccount}` : 'STK trong hồ sơ khách'}. Bạn sẽ tự chuyển khoản rồi bấm "Đã chuyển khoản". Tiếp tục?`)) return;
     adminSetStatus(b.id, body).then(() => { toast.success('Đã cập nhật'); load(); }).catch((e) => toast.error(errorMessage(e)));
   };
 
@@ -197,7 +208,7 @@ function Bookings() {
         <ul className="space-y-4">
           {list.map((b) => (
             <BookingRow key={b.id} b={b} showRenter="admin">
-              {(ACTIONS[b.status] || []).map(([to, label]) => (
+              {((isSale(b) ? SALE_ACTIONS : ACTIONS)[b.status] || []).map(([to, label]) => (
                 <button key={to} onClick={() => act(b, to)} className={['CANCELLED', 'DISPUTED'].includes(to) ? 'btn-ghost px-3 py-1.5 text-xs' : 'btn-dark px-3 py-1.5 text-xs'}>{label}</button>
               ))}
               {b.refundStatus === 'PROCESSING' && <button onClick={() => confirmRefund(b)} className="btn-wine px-3 py-1.5 text-xs">Đã chuyển khoản</button>}

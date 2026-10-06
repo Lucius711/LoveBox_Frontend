@@ -17,7 +17,9 @@ test.describe('Đăng ký làm Chủ đồ', () => {
     expect((await (await api(USERS.fresh)).get('owner/products')).status()).toBe(403);
     await login(page, USERS.fresh);
     await page.goto('/');
-    await page.getByRole('main').getByRole('link', { name: /Đăng đồ cho thuê/ }).first().click();
+    const ownerRow = page.locator('details').filter({ has: page.locator('summary', { hasText: 'Chủ đồ' }) });   // accordion vai trò cuối trang chủ
+    await ownerRow.locator('summary').click();
+    await ownerRow.getByRole('link', { name: 'Đăng đồ cho thuê' }).click();
     await expect(page).toHaveURL(/tab=owner/);
     await expect(page.getByRole('heading', { name: 'Đăng ký làm Chủ đồ' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Đăng ký Chủ đồ' })).toBeVisible();   // tên tab của khách thuê
@@ -175,7 +177,7 @@ test.describe('Chủ đồ đăng / sửa / ẩn đồ, admin kiểm duyệt', (
   test('đồ chờ duyệt chưa hiện với khách; admin duyệt → lên kệ', async ({ page }) => {
     expect((await data(await (await api()).get('products', { params: { q: APPROVE } }))).items).toHaveLength(0);
     await login(page, USERS.admin);
-    await page.goto('/admin');
+    await page.goto('/admin?tab=products');   // /admin mặc định mở tab Truy cập
     const row = productRow(page, APPROVE);
     await expect(row).toContainText('Cọc 80%');
     await row.getByRole('button', { name: 'Duyệt' }).click();
@@ -190,7 +192,7 @@ test.describe('Chủ đồ đăng / sửa / ẩn đồ, admin kiểm duyệt', (
     await data(await owner.post('owner/products', { data: await validBody(owner, REJECT) }));
     await login(page, USERS.admin);
     page.on('dialog', (d) => d.accept('Ảnh mờ (E2E)'));
-    await page.goto('/admin');
+    await page.goto('/admin?tab=products');
     await productRow(page, REJECT).getByRole('button', { name: 'Từ chối' }).click();
     await expect(page.getByText('Đã từ chối')).toBeVisible();
 

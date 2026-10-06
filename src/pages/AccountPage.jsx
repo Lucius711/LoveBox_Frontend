@@ -6,7 +6,7 @@ import MainLayout from '../layouts/MainLayout';
 import { Field, Tabs } from '../components/ui';
 import BookingRow, { StatusBadge } from '../components/BookingRow';
 import { useAuth } from '../context/AuthContext';
-import { PRODUCT_STATUS, ROUTES } from '../constants';
+import { PRODUCT_STATUS, ROUTES, SALE_ACTIONS } from '../constants';
 import { useChat } from '../components/Chat';
 import BankSelect from '../components/BankSelect';
 import StyleProfileForm, { emptyProfile, toRequest } from '../components/StyleProfileForm';
@@ -14,10 +14,10 @@ import {
   applyOwner, myOwnerApplication, getMeta, saveStyleProfile, cancelBooking, errorMessage, hideProduct, myBookings, ownerBookings, ownerProducts,
   ownerSetStatus, ownerStats, reviewBooking, updateProfile,
 } from '../services/api';
-import { formatCurrency } from '../utils/format';
+import { formatCurrency, isSale } from '../utils/format';
 
-const TABS = [['bookings', 'Đơn thuê'], ['owner', 'Cho thuê'], ['profile', 'Hồ sơ']];
-const RENTER_TABS = [['bookings', 'Đơn thuê'], ['owner', 'Đăng ký Chủ đồ'], ['profile', 'Hồ sơ']];
+const TABS = [['bookings', 'Đơn hàng'], ['owner', 'Cho thuê & thanh lý'], ['profile', 'Hồ sơ']];
+const RENTER_TABS = [['bookings', 'Đơn hàng'], ['owner', 'Đăng ký Chủ đồ'], ['profile', 'Hồ sơ']];
 
 export default function AccountPage() {
   const [params] = useSearchParams();
@@ -152,8 +152,13 @@ function OwnerApply() {
   );
 }
 
+const KINDS = [['RENT', 'Cho thuê'], ['SALE', 'Thanh lý']];
+
 function OwnerPanel() {
   const { user } = useAuth();
+  const [params, setParams] = useSearchParams();
+  const kind = params.get('kind') === 'SALE' ? 'SALE' : 'RENT';
+  const sale = kind === 'SALE';
   const [stats, setStats] = useState(null);
   const [products, setProducts] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -169,28 +174,41 @@ function OwnerPanel() {
   if (!isOwner) return <OwnerApply />;
 
   const act = (id, status) => ownerSetStatus(id, { status }).then(() => { toast.success('Đã cập nhật'); load(); }).catch((e) => toast.error(errorMessage(e)));
-  const pendingCount = bookings.filter((b) => b.status === 'PENDING').length;
+  const mineProducts = products.filter((p) => isSale(p) === sale);
+  const mineBookings = bookings.filter((b) => isSale(b) === sale);
+  const pendingCount = mineBookings.filter((b) => b.status === 'PENDING').length;
+  const pendingOf = (k) => bookings.filter((b) => isSale(b) === (k === 'SALE') && b.status === 'PENDING').length;
 
   return (
     <div className="space-y-8">
       {stats && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat k="Doanh thu thuê" v={formatCurrency(stats.revenue)} />
+          <Stat k="Doanh thu" v={formatCurrency(stats.revenue)} />
           <Stat k="Đơn chờ xác nhận" v={stats.pending} highlight={stats.pending > 0} />
           <Stat k="Đang cho thuê" v={stats.active} />
           <Stat k="Món đã đăng" v={stats.productCount} />
         </div>
       )}
 
+      {/* Cho thuê | Thanh lý */}
+      <div className="flex gap-2">
+        {KINDS.map(([k, l]) => (
+          <button key={k} onClick={() => setParams({ tab: 'owner', kind: k })} aria-pressed={kind === k}
+            className={`rounded-full px-4 py-2 text-sm font-medium transition ${kind === k ? 'bg-ink text-white' : 'bg-stone-100 text-stone-600 hover:text-ink'}`}>
+            {l}{pendingOf(k) > 0 && <span className="ml-1.5 rounded-full bg-wine-600 px-1.5 text-[11px] text-white">{pendingOf(k)}</span>}
+          </button>
+        ))}
+      </div>
+
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold">Đơn thuê đồ của bạn {pendingCount > 0 && <span className="ml-1 rounded-full bg-wine-600 px-2 py-0.5 text-xs text-white">{pendingCount} mới</span>}</h2>
+          <h2 className="font-semibold">{sale ? 'Đơn mua đồ thanh lý' : 'Đơn thuê đồ của bạn'} {pendingCount > 0 && <span className="ml-1 rounded-full bg-wine-600 px-2 py-0.5 text-xs text-white">{pendingCount} mới</span>}</h2>
         </div>
-        {bookings.length === 0 ? <p className="text-sm text-stone-500">Chưa có ai thuê.</p> : (
+        {mineBookings.length === 0 ? <p className="text-sm text-stone-500">{sale ? 'Chưa có ai mua.' : 'Chưa có ai thuê.'}</p> : (
           <ul className="space-y-4">
-            {bookings.map((b) => (
+            {mineBookings.map((b) => (
               <BookingRow key={b.id} b={b} showRenter>
-                {(OWNER_ACTIONS[b.status] || []).map(([to, label]) => (
+                {((sale ? SALE_ACTIONS : OWNER_ACTIONS)[b.status] || []).map(([to, label]) => (
                   <button key={to} onClick={() => act(b.id, to)} className={to === 'CANCELLED' ? 'btn-ghost px-3 py-1.5 text-xs' : 'btn-dark px-3 py-1.5 text-xs'}>{label}</button>
                 ))}
               </BookingRow>
@@ -201,26 +219,26 @@ function OwnerPanel() {
 
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold">Đồ của tôi</h2>
-          <Link to={ROUTES.NEW_PRODUCT} className="btn-wine px-4 py-2"><Plus size={15} /> Đăng đồ cho thuê</Link>
+          <h2 className="font-semibold">{sale ? 'Đồ thanh lý của tôi' : 'Đồ cho thuê của tôi'}</h2>
+          <Link to={sale ? ROUTES.NEW_SALE : ROUTES.NEW_PRODUCT} className="btn-wine px-4 py-2"><Plus size={15} /> {sale ? 'Đăng đồ thanh lý' : 'Đăng đồ cho thuê'}</Link>
         </div>
         <ul className="divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white">
-          {products.map((p) => (
+          {mineProducts.map((p) => (
             <li key={p.id} className="flex items-center gap-3 p-3">
               <img src={p.image} alt="" loading="lazy" className="h-16 w-12 rounded-lg object-cover" />
               <div className="min-w-0 flex-1">
                 <Link to={ROUTES.PRODUCT(p.id)} className="line-clamp-1 text-sm font-medium">{p.name}</Link>
-                <p className="text-xs text-stone-500">{formatCurrency(p.rentPricePerDay)}/ngày · {p.rentCount} lượt thuê</p>
+                <p className="text-xs text-stone-500">{sale ? `Giá bán ${formatCurrency(p.salePrice)}` : `${formatCurrency(p.rentPricePerDay)}/ngày · ${p.rentCount} lượt thuê`}</p>
                 {p.status === 'REJECTED' && p.rejectReason && <p className="text-xs text-rose-600">Lý do: {p.rejectReason}</p>}
               </div>
               <StatusBadge map={PRODUCT_STATUS} value={p.status} />
-              <Link to={ROUTES.EDIT_PRODUCT(p.id)} className="text-xs underline">Sửa</Link>
-              {p.status !== 'HIDDEN' && (
+              {p.status !== 'SOLD' && <Link to={ROUTES.EDIT_PRODUCT(p.id)} className="text-xs underline">Sửa</Link>}
+              {!['HIDDEN', 'SOLD'].includes(p.status) && (
                 <button className="text-xs text-stone-500 underline" onClick={() => confirm('Ẩn món này?') && hideProduct(p.id).then(load)}>Ẩn</button>
               )}
             </li>
           ))}
-          {products.length === 0 && <li className="p-6 text-center text-sm text-stone-500">Chưa đăng món nào.</li>}
+          {mineProducts.length === 0 && <li className="p-6 text-center text-sm text-stone-500">{sale ? 'Chưa đăng món thanh lý nào.' : 'Chưa đăng món nào.'}</li>}
         </ul>
       </section>
     </div>

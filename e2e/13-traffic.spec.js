@@ -43,19 +43,23 @@ test('chỉ đếm đơn đã thanh toán, không tính đơn huỷ; 1 người 
   const admin = await api(USERS.admin);
   const base = await today(admin);
   const delta = async () => { const t = await today(admin); return [t.renters - base.renters, t.bookings - base.bookings]; };
+  // Spec trước (vòng đời thuê, mua thanh lý COD) có thể đã làm khách này thành "người đặt thuê" hôm nay → không tính thêm người
+  const [{ n }] = await sql(`SELECT count(*)::int AS n FROM dtb_bookings WHERE renter_id = $1 AND payment_status = 'PAID' AND status <> 'CANCELLED'
+    AND (created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date`, [USERS.renter.id]);
+  const NEW = n ? 0 : 1;
 
   const b1 = await bookCOD(USERS.renter, E2E_PRODUCT.id, futureDate(3, 5), futureDate(4, 5));
   expect(await delta(), 'COD chưa trả tiền').toEqual([0, 0]);
 
   await sql(`UPDATE dtb_bookings SET payment_status = 'PAID' WHERE id = $1`, [b1.id]); // = PayOS webhook báo đã trả
-  expect(await delta(), 'đơn 1 đã trả').toEqual([1, 1]);
+  expect(await delta(), 'đơn 1 đã trả').toEqual([NEW, 1]);
 
   const b2 = await bookCOD(USERS.renter, E2E_PRODUCT.id, futureDate(10, 5), futureDate(11, 5));
   await sql(`UPDATE dtb_bookings SET payment_status = 'PAID' WHERE id = $1`, [b2.id]);
-  expect(await delta(), 'cùng người đặt đơn 2').toEqual([1, 2]);
+  expect(await delta(), 'cùng người đặt đơn 2').toEqual([NEW, 2]);
 
   await sql(`UPDATE dtb_bookings SET status = 'CANCELLED' WHERE id = $1`, [b2.id]);
-  expect(await delta(), 'đơn 2 bị huỷ').toEqual([1, 1]);
+  expect(await delta(), 'đơn 2 bị huỷ').toEqual([NEW, 1]);
 });
 
 test('số liệu khớp với truy vấn thẳng DB; tổng = cộng theo ngày với số đơn', async () => {

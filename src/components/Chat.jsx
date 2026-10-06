@@ -142,7 +142,7 @@ export function ChatWidget() {
   if (HIDE_ON.includes(pathname)) return null;
   // Trang chi tiết có thanh "Thuê ngay" dính đáy trên điện thoại → nâng nút chat lên để không che
   return (
-    <div className={`fixed right-4 z-50 flex flex-col items-end gap-3 ${pathname.startsWith('/products/') ? 'bottom-20 md:bottom-4' : 'bottom-4'}`}>
+    <div id="chat-widget" className={`fixed right-4 z-50 flex flex-col items-end gap-3 ${pathname.startsWith('/products/') ? 'bottom-20 md:bottom-4' : 'bottom-4'}`}>
       {open && (
         <div className="card flex h-[min(600px,calc(100dvh-10rem))] w-[min(400px,calc(100vw-2rem))] flex-col overflow-hidden shadow-2xl">
           <div className="flex items-center justify-between bg-ink px-4 py-3 text-white">

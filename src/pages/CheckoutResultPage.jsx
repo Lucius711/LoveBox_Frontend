@@ -52,20 +52,20 @@ export default function CheckoutResultPage() {
         {data === null ? <p className="text-stone-500">Đang tải…</p> : data === false ? <p>Không tìm thấy đơn.</p> : (
           <>
             {paid || cod ? <CheckCircle2 className="mx-auto text-emerald-600" size={48} /> : <Clock className="mx-auto text-amber-600" size={48} />}
-            <h1 className="mt-4 font-serif text-3xl">{paid ? 'Thanh toán thành công!' : cod ? 'Đặt thuê thành công!' : 'Đơn đã huỷ'}</h1>
+            <h1 className="mt-4 font-serif text-3xl">{paid ? 'Thanh toán thành công!' : cod ? (data.bookings.every((b) => b.kind === 'SALE') ? 'Đặt mua thành công!' : 'Đặt thuê thành công!') : 'Đơn đã huỷ'}</h1>
             <p className="mt-2 text-sm text-stone-500">
-              {cod ? 'Bạn thanh toán khi nhận đồ. ' : ''}Chủ đồ sẽ xác nhận đơn sớm, theo dõi trạng thái trong mục Đơn thuê.
+              {cod ? 'Bạn thanh toán khi nhận đồ. ' : ''}Chủ đồ sẽ xác nhận đơn sớm, theo dõi trạng thái trong mục Đơn hàng.
             </p>
             <ul className="card mt-6 divide-y divide-stone-100 text-left text-sm">
               {data.bookings.map((b) => (
                 <li key={b.id} className="flex justify-between gap-3 p-4">
-                  <span><b>{b.productName}</b><br /><span className="text-stone-500">{b.code} · {formatDate(b.startDate)} → {formatDate(b.endDate)}</span></span>
+                  <span><b>{b.productName}</b><br /><span className="text-stone-500">{b.code} · {b.kind === 'SALE' ? 'Mua thanh lý' : `${formatDate(b.startDate)} → ${formatDate(b.endDate)}`}</span></span>
                   <span className="shrink-0">{formatCurrency(b.totalAmount)}</span>
                 </li>
               ))}
             </ul>
             <p className="mt-4 font-semibold">Tổng: {formatCurrency(data.totalAmount)}</p>
-            <Link to={ROUTES.ACCOUNT} className="btn-dark mt-6">Xem đơn thuê của tôi</Link>
+            <Link to={ROUTES.ACCOUNT} className="btn-dark mt-6">Xem đơn hàng của tôi</Link>
           </>
         )}
       </div>

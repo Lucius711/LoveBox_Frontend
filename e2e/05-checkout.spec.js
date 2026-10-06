@@ -22,7 +22,7 @@ test('giỏ hàng: chọn ngày → tự tính số ngày, tiền thuê, cọc, 
 
   await expect(page).toHaveURL(/\/cart/);
   await expect(page.getByText('(2 ngày)')).toBeVisible();
-  await expect(row(page, 'Tiền thuê')).toContainText(money(2 * RENT));
+  await expect(row(page, 'Tiền đồ (thuê / mua)')).toContainText(money(2 * RENT));
   await expect(row(page, 'Tiền cọc bảo đảm')).toContainText(money(DEPOSIT));
   await expect(row(page, 'Tạm tính')).toContainText(money(2 * RENT + DEPOSIT));
 
@@ -40,7 +40,7 @@ test('checkout: Thành tiền = tiền thuê × ngày + cọc + phí ship; đặ
   await page.goto(`/products/${E2E_PRODUCT.id}`);
   await pickDates(page, 22, 24);
   await page.getByRole('button', { name: 'Thuê ngay' }).click();
-  await page.getByRole('button', { name: 'Tiến hành đặt thuê' }).click();
+  await page.getByRole('button', { name: 'Tiến hành đặt hàng' }).click();
   await expect(page).toHaveURL(/\/checkout$/);
 
   // Thông tin giao nhận điền sẵn từ hồ sơ
@@ -91,7 +91,7 @@ test('thanh toán QR: hiện mã QR (PayOS đã cấu hình) hoặc báo lỗi r
   await page.goto(`/products/${SEED_PRODUCT.id}`);
   await pickDates(page, 3, 3);
   await page.getByRole('button', { name: 'Thuê ngay' }).click();
-  await page.getByRole('button', { name: 'Tiến hành đặt thuê' }).click();
+  await page.getByRole('button', { name: 'Tiến hành đặt hàng' }).click();
   await page.getByText('Chuyển khoản QR').click();
   await page.getByRole('button', { name: 'Đặt thuê & lấy mã QR' }).click();
   const qr = page.getByRole('heading', { name: 'Quét mã để thanh toán' });
@@ -138,7 +138,7 @@ test('giỏ chưa chọn ngày / ngày đã qua → chưa cho đặt; xoá món 
   await page.goto('/cart');
   await expect(page.getByRole('button', { name: 'Chọn ngày nhận & trả đồ' })).toBeVisible();
   await expect(page.getByText('Ngày nhận đã qua, chọn lại nhé.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Tiến hành đặt thuê' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Tiến hành đặt hàng' })).toBeDisabled();
   await expect(page.getByText('Chọn ngày thuê cho tất cả món trước nhé')).toBeVisible();
 
   await page.getByRole('button', { name: 'Xoá' }).first().click();
@@ -150,6 +150,6 @@ test('khách chưa đăng nhập bấm đặt thuê → sang trang đăng nhập
   await page.addInitScript((i) => localStorage.setItem('lt_cart', JSON.stringify([i])),
     cartItem(SEED_PRODUCT.id, SEED_PRODUCT.name, futureDate(10, 2), futureDate(11, 2)));
   await page.goto('/cart');
-  await page.getByRole('button', { name: 'Tiến hành đặt thuê' }).click();
+  await page.getByRole('button', { name: 'Tiến hành đặt hàng' }).click();
   await expect(page).toHaveURL(/\/login/);
 });

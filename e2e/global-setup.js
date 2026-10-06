@@ -1,13 +1,13 @@
-import { API, E2E_PRODUCT, USERS, sql } from './helpers.js';
+import { API, E2E_PRODUCT, E2E_SALE, E2E_SALE2, USERS, sql } from './helpers.js';
 
 /** Reset dữ liệu của các tài khoản e2e → mỗi lần chạy bắt đầu từ trạng thái giống nhau. */
 export default async function globalSetup() {
   const health = await fetch(`${API}/products/meta`).catch(() => null);
   if (!health?.ok) throw new Error(`Backend chưa chạy ở ${API} (đặt E2E_API_URL nếu khác)`);
 
-  // DB phải đã chạy đủ migration của backend (V14 thống kê truy cập)
+  // DB phải đã chạy đủ migration của backend (V15 đồ thanh lý)
   const [{ v }] = await sql('SELECT max(version::int) AS v FROM flyway_schema_history WHERE success');
-  if (v < 14) throw new Error(`DB trong CONFIG mới ở migration V${v}, cần ≥ V14 → khởi động lại backend (bản mới) trỏ vào đúng DB này`);
+  if (v < 15) throw new Error(`DB trong CONFIG mới ở migration V${v}, cần ≥ V15 → khởi động lại backend (bản mới) trỏ vào đúng DB này`);
 
   const ids = Object.values(USERS).map((u) => u.id);
   await sql(`DELETE FROM dtb_reviews WHERE user_id = ANY($1)
@@ -42,4 +42,17 @@ export default async function globalSetup() {
   await sql(`INSERT INTO dtb_product_images (product_id, sort_order, url)
              VALUES ($1, 0, 'https://picsum.photos/seed/e2e-0/600/800'), ($1, 1, 'https://picsum.photos/seed/e2e-1/600/800'),
                     ($1, 2, 'https://picsum.photos/seed/e2e-2/600/800')`, [E2E_PRODUCT.id]);
+
+  // Đồ thanh lý: chỉ có giá bán, không giá thuê / cọc
+  for (const s of [E2E_SALE, E2E_SALE2]) {
+    await sql(`INSERT INTO dtb_products (id, owner_id, name, description, category, size, bust_max, waist_max, hip_max,
+                 item_condition, retail_price, rent_price_per_day, deposit_percent, status, listing_type, sale_price)
+               VALUES ($1, $2, $3, 'Đồ thanh lý dùng cho kiểm thử tự động E2E.', 'Váy dự tiệc', 'M', 90, 72, 96,
+                 'Mới 99%', 1200000, 0, 100, 'APPROVED', 'SALE', $4)`, [s.id, USERS.owner.id, s.name, s.price]);
+    await sql(`INSERT INTO dtb_product_tags (product_id, tag_type, tag_value)
+               VALUES ($1, 'COLOR', 'Đỏ đô'), ($1, 'STYLE', 'Thanh lịch'), ($1, 'OCCASION', 'Kỷ yếu')`, [s.id]);
+    await sql(`INSERT INTO dtb_product_images (product_id, sort_order, url)
+               VALUES ($1, 0, 'https://picsum.photos/seed/e2e-s0/600/800'), ($1, 1, 'https://picsum.photos/seed/e2e-s1/600/800'),
+                      ($1, 2, 'https://picsum.photos/seed/e2e-s2/600/800')`, [s.id]);
+  }
 }
